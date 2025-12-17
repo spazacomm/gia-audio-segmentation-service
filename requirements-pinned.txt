@@ -1,0 +1,29 @@
+# Alternative requirements file with known working versions
+# Use this if the main requirements.txt has version conflicts
+
+# FastAPI and ASGI
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# Audio Processing
+inaSpeechSegmenter==0.8.0
+librosa==0.10.1
+soundfile==0.12.1
+numpy==1.24.3
+
+# Google Cloud
+google-cloud-storage==2.10.0
+
+# Database
+supabase==1.0.3
+
+# Environment
+python-dotenv==1.0.0
+
+# Utilities
+python-multipart==0.0.6
+
+# Monitoring & System
+psutil==5.9.6
+prometheus-client==0.19.0

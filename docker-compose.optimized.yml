@@ -1,0 +1,126 @@
+# Optimized Docker Compose for 2 vCPU, 4GB RAM systems
+version: '3.8'
+
+services:
+  segmentation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.optimized
+    ports:
+      - "8000:8000"
+    environment:
+      # Service Configuration
+      - FASTAPI_HOST=0.0.0.0
+      - FASTAPI_PORT=8000
+      - FASTAPI_WORKERS=1
+      
+      # Google Cloud Storage
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+      
+      # Supabase
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      
+      # Optimized Resource Limits
+      - MAX_CONCURRENT_JOBS=1
+      - MAX_MEMORY_MB=3072
+      - AUDIO_CHUNK_SIZE_SECONDS=300
+      - PROCESSING_TIMEOUT_SECONDS=1800
+      
+      # Performance Optimizations
+      - LOG_LEVEL=WARNING
+      - CLEANUP_ON_SHUTDOWN=true
+      
+    volumes:
+      # Mount credentials (if using service account)
+      - ./credentials.json:/app/credentials.json:ro
+      
+      # Optimized temp directory with memory limits
+      - type: tmpfs
+        target: /tmp/segmentation
+        tmpfs:
+          size: 512m
+          mode: 1777
+      
+      # App logs
+      - ./logs:/app/logs
+    
+    # Resource limits for 2 vCPU, 4GB RAM system
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    
+    restart: unless-stopped
+    
+    # Health check optimized for low resources
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    
+    # Security and optimization
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Allow temp file creation
+    tmpfs:
+      - /tmp:size=512m,noexec,nosuid,nodev
+
+  # Optional: Redis for job queue (only if needed)
+  # Uncomment if you want to add job queuing
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 256M
+  #   command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+  #   restart: unless-stopped
+
+  # Optional: Monitoring with Prometheus (lightweight)
+  # Uncomment if you want basic monitoring
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--storage.tsdb.retention.time=15d'
+  #     - '--storage.tsdb.retention.size=1GB'
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 512M
+  #   restart: unless-stopped
+
+volumes:
+  # Named volumes for data persistence
+  segmentation_data:
+    driver: local
+  
+  prometheus_data:
+    driver: local
+
+# Networks (if needed for multiple services)
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

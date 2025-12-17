@@ -1,0 +1,53 @@
+# Optimized Dockerfile for 2 vCPU, 4GB RAM systems
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies (minimal)
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements-optimized.txt requirements.txt
+
+# Install Python dependencies (optimized)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Set memory and CPU limits for container
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Copy optimized application code
+COPY main_optimized.py main.py
+COPY dashboard.html .
+
+# Create temp directory with limited size
+RUN mkdir -p /tmp/segmentation && \
+    echo "tmpfs /tmp/segmentation tmpfs rw,size=512m,noexec,nosuid,nodev 0 0" >> /etc/fstab || true
+
+# Set resource limits
+# Note: These are suggestions, actual limits depend on container runtime
+ENV MAX_CONCURRENT_JOBS=1
+ENV MAX_MEMORY_MB=3072
+ENV AUDIO_CHUNK_SIZE_SECONDS=300
+ENV PROCESSING_TIMEOUT_SECONDS=1800
+
+# Expose port
+EXPOSE 8000
+
+# Health check (optimized)
+HEALTHCHECK --interval=60s --timeout=30s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run with optimized settings
+CMD ["uvicorn", "main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1", \
+     "--log-level", "warning", \
+     "--access-log", "false", \
+     "--loop", "asyncio"]
