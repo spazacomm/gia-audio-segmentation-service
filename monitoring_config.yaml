@@ -1,0 +1,412 @@
+# Monitoring Configuration
+# This file contains configuration for external monitoring systems
+
+# Prometheus Configuration (prometheus.yml)
+prometheus_config: |
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+
+  rule_files:
+    # - "first_rules.yml"
+    # - "second_rules.yml"
+
+  scrape_configs:
+    - job_name: 'segmentation-service'
+      static_configs:
+        - targets: ['localhost:8000']
+      metrics_path: '/metrics'
+      scrape_interval: 30s
+      scrape_timeout: 10s
+
+# Grafana Dashboard Configuration
+grafana_dashboard: |
+  {
+    "dashboard": {
+      "id": null,
+      "title": "Audio Segmentation Service",
+      "tags": ["audio", "segmentation", "fastapi"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Service Health",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "up{job=\"segmentation-service\"}",
+              "legendFormat": "Service Status"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": 0},
+                  {"color": "green", "value": 1}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "CPU Usage",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "cpu_usage_percent",
+              "legendFormat": "CPU %"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Memory Usage",
+          "type": "stat", 
+          "targets": [
+            {
+              "expr": "memory_usage_percent",
+              "legendFormat": "Memory %"
+            }
+          ]
+        }
+      ],
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "5s"
+    }
+  }
+
+# Alert Manager Configuration
+alertmanager_config: |
+  global:
+    smtp_smarthost: 'localhost:587'
+    smtp_from: 'alerts@yourcompany.com'
+
+  route:
+    group_by: ['alertname']
+    group_wait: 10s
+    group_interval: 10s
+    repeat_interval: 1h
+    receiver: 'web.hook'
+
+  receivers:
+    - name: 'web.hook'
+      webhook_configs:
+        - url: 'http://localhost:5001/'
+
+  inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'dev', 'instance']
+
+# Alert Rules
+alert_rules: |
+  groups:
+  - name: segmentation_service_alerts
+    rules:
+    - alert: ServiceDown
+      expr: up{job="segmentation-service"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Audio Segmentation Service is down"
+        description: "The service has been down for more than 1 minute."
+
+    - alert: HighCPUUsage
+      expr: cpu_usage_percent > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "CPU usage is above 80% for more than 5 minutes."
+
+    - alert: HighMemoryUsage
+      expr: memory_usage_percent > 85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is above 85% for more than 5 minutes."
+
+    - alert: HighDiskUsage
+      expr: disk_usage_percent > 90
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High disk usage detected"
+        description: "Disk usage is above 90%. Immediate attention required."
+
+    - alert: HighErrorRate
+      expr: error_rate_percent > 5
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High error rate detected"
+        description: "Error rate is above 5% for more than 10 minutes."
+
+# Health Check Script for Load Balancers
+health_check_script: |
+  #!/bin/bash
+  
+  # Simple health check script for load balancers
+  SERVICE_URL="http://localhost:8000"
+  TIMEOUT=5
+  
+  # Check basic health endpoint
+  response=$(curl -s -o /dev/null -w "%{http_code}" --max-time $TIMEOUT $SERVICE_URL/health)
+  
+  if [ "$response" = "200" ]; then
+    echo "Service is healthy"
+    exit 0
+  else
+    echo "Service is unhealthy (HTTP $response)"
+    exit 1
+  fi
+
+# Docker Compose with Monitoring
+docker_compose_monitoring: |
+  version: '3.8'
+  
+  services:
+    segmentation-service:
+      build: .
+      ports:
+        - "8000:8000"
+      environment:
+        - GCS_BUCKET=${GCS_BUCKET}
+        - SUPABASE_URL=${SUPABASE_URL}
+        - SUPABASE_KEY=${SUPABASE_KEY}
+      volumes:
+        - ./temp:/tmp/segmentation
+      restart: unless-stopped
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 40s
+  
+  # Optional: Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    restart: unless-stopped
+  
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+  
+  # Optional: Alert Manager for notifications
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    restart: unless-stopped
+
+  volumes:
+    prometheus_data:
+    grafana_data:
+
+# Kubernetes Monitoring Configuration
+k8s_monitoring: |
+  # Kubernetes ServiceMonitor for Prometheus
+  apiVersion: monitoring.coreos.com/v1
+  kind: ServiceMonitor
+  metadata:
+    name: segmentation-service-monitor
+    namespace: monitoring
+  spec:
+    selector:
+      matchLabels:
+        app: segmentation-service
+    endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+  
+  # Kubernetes PodMonitor for metrics
+  apiVersion: monitoring.coreos.com/v1
+  kind: PodMonitor
+  metadata:
+    name: segmentation-service-podmonitor
+    namespace: monitoring
+  spec:
+    selector:
+      matchLabels:
+        app: segmentation-service
+    podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+  
+  # AlertManager configuration
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: alertmanager-config
+    namespace: monitoring
+  data:
+    alertmanager.yml: |
+      global:
+        smtp_smarthost: 'smtp:587'
+        smtp_from: 'alerts@yourcompany.com'
+      
+      route:
+        group_by: ['alertname']
+        group_wait: 10s
+        group_interval: 10s
+        repeat_interval: 1h
+        receiver: 'default'
+      
+      receivers:
+      - name: 'default'
+        email_configs:
+        - to: 'ops@yourcompany.com'
+          subject: 'Audio Segmentation Service Alert'
+
+# Log Monitoring Configuration
+log_monitoring: |
+  # Fluentd configuration for log aggregation
+  <source>
+    @type tail
+    path /var/log/segmentation-service/*.log
+    pos_file /var/log/segmentation-service/access.log.pos
+    tag segmentation-service.access
+    format json
+    time_key timestamp
+    time_format %Y-%m-%dT%H:%M:%S.%NZ
+  </source>
+  
+  <match segmentation-service.**>
+    @type elasticsearch
+    host elasticsearch
+    port 9200
+    index_name segmentation-logs
+    type_name _doc
+  </match>
+
+# Performance Monitoring
+performance_monitoring: |
+  # New Relic configuration
+  NEW_RELIC_LICENSE_KEY=your_license_key
+  NEW_RELIC_APP_NAME=Audio Segmentation Service
+  
+  # Datadog configuration  
+  DD_API_KEY=your_api_key
+  DD_SERVICE_NAME=segmentation-service
+  DD_ENV=production
+  
+  # Application Performance Monitoring
+  apm_config:
+    service_name: segmentation-service
+    environment: production
+    sampling_rate: 0.1
+    trace_threshold: 100  # ms
+
+# Monitoring Best Practices
+monitoring_best_practices: |
+  ## Monitoring Best Practices for Audio Segmentation Service
+  
+  ### 1. Key Metrics to Monitor
+  - **Service Health**: Response time, error rate, availability
+  - **System Resources**: CPU, memory, disk usage
+  - **Processing Metrics**: Job queue length, processing time, success rate
+  - **Database Performance**: Query response time, connection pool
+  - **External Dependencies**: GCS connectivity, network latency
+  
+  ### 2. Alert Thresholds
+  - CPU Usage > 80% (Warning), > 95% (Critical)
+  - Memory Usage > 85% (Warning), > 95% (Critical)
+  - Disk Usage > 85% (Warning), > 90% (Critical)
+  - Error Rate > 5% (Warning), > 10% (Critical)
+  - Response Time > 2s (Warning), > 5s (Critical)
+  
+  ### 3. Monitoring Frequency
+  - Health checks: Every 30 seconds
+  - Metrics collection: Every 15-30 seconds
+  - Log analysis: Real-time
+  - Capacity planning: Daily
+  
+  ### 4. Alert Routing
+  - Critical alerts: Immediate notification (SMS, Slack)
+  - Warning alerts: Dashboard notification (Email)
+  - Info alerts: Log only
+  
+  ### 5. Dashboards
+  - Executive dashboard: High-level KPIs
+  - Operations dashboard: Detailed metrics
+  - Development dashboard: Performance traces
+  
+  ### 6. Incident Response
+  - Runbook for common issues
+  - Escalation procedures
+  - Post-incident reviews
+  - Continuous improvement
+
+# Custom Metrics Implementation
+custom_metrics: |
+  # Additional metrics that can be implemented
+  
+  metrics_to_add:
+    - audio_processing_duration_seconds
+    - segments_per_audio_file
+    - gcs_download_duration_seconds
+    - database_query_duration_seconds
+    - temp_file_cleanup_duration_seconds
+    - job_queue_length
+    - processing_throughput_per_hour
+    
+  prometheus_metrics:
+    - name: audio_processing_duration_seconds
+      type: histogram
+      description: Duration of audio processing jobs
+    
+    - name: segments_created_total
+      type: counter
+      description: Total number of audio segments created
+    
+    - name: job_queue_length
+      type: gauge
+      description: Current number of jobs in queue
+    
+    - name: gcs_download_errors_total
+      type: counter
+      description: Total number of GCS download errors
+    
+    - name: database_connection_pool_usage
+      type: gauge
+      description: Database connection pool utilization percentage
