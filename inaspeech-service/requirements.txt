@@ -1,9 +1,4 @@
-tensorflow==2.8.0
-keras==2.8.0
-protobuf==3.20.3
-numpy>=1.21,<1.24
-
-inaSpeechSegmenter==0.7.7
+inaSpeechSegmenter
 
 fastapi
 uvicorn[standard]

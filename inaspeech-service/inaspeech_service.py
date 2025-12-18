@@ -5,7 +5,11 @@ from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
+
+# Load the libraries
 from inaSpeechSegmenter import Segmenter
+
+
 from google.cloud import storage
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
