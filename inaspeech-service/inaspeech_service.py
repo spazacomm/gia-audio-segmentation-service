@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
+from typing import List, Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, status, Depends, Header
