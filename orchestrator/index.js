@@ -163,6 +163,8 @@ app.post('/process', async (req, res) => {
 // ----------------------------------------------------
 // Start server (THIS FIXES YOUR ERROR)
 // ----------------------------------------------------
-app.listen(PORT, () => {
-  console.log(`🚀 Cloud Run service listening on port ${PORT}`);
+
+app.listen(PORT, '0.0.0.0', () => { // Bind to 0.0.0.0
+  console.log(`App listening on port ${PORT}`);
 });
+
