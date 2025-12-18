@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydub
+pyacoustid
+google-cloud-storage
+requests
+python-multipart
