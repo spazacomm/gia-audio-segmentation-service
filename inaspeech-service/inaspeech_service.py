@@ -18,8 +18,10 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     GCP_PROJECT_ID: str = "spaza-media-monitor"
     TEMP_DIR: str = "/tmp/audio_processing"
-    WEBHOOK_URL: str | None = None  # e.g., https://example.com/webhook
-    WEBHOOK_TOKEN: str | None = None  # Bearer token for webhook auth
+
+    WEBHOOK_URL: Optional[str] = None  # e.g., https://example.com/webhook
+    WEBHOOK_TOKEN: Optional[str] = None  # e.g., https://example.com/webhook
+
     API_KEY: str = "supersecretapikey"  # API key for securing this service
 
     class Config:
