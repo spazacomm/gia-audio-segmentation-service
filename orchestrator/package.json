@@ -1,0 +1,16 @@
+{
+    "name": "audio-orchestrator",
+    "version": "1.0.0",
+    "main": "index.js",
+    "type": "commonjs",
+    "scripts": {
+      "start": "node index.js"
+    },
+    "dependencies": {
+      "@google-cloud/storage": "^7.14.0",
+      "@supabase/supabase-js": "^2.39.7",
+      "express": "^4.19.2",
+      "node-fetch": "^2.7.0"
+    }
+  }
+  
