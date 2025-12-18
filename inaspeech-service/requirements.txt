@@ -5,3 +5,4 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 google-cloud-storage
+httpx
