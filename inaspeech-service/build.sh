@@ -1,6 +1,6 @@
 # 6. Build and run
-sudo docker stop inaspeech
-sudo docker rm inaspeech
+#sudo docker stop inaspeech
+#sudo docker rm inaspeech
 sudo docker build -t inaspeech-service .
 sudo docker run -d -p 8000:8000 \
   -e GCP_PROJECT_ID="spaza-media-monitor" \
