@@ -196,7 +196,7 @@ def process_gcs_task(req: AudioRequest):
         if temp_snippet_path and os.path.exists(temp_snippet_path):
             os.remove(temp_snippet_path)
 
-# --- API ENDPOINT ---
+# --- API ENDPOINT --
 @app.post("/fingerprint")
 async def fingerprint_endpoint(req: AudioRequest, background_tasks: BackgroundTasks):
     """
