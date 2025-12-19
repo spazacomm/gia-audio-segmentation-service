@@ -1,0 +1,4 @@
+inaSpeechSegmenter
+pydantic
+pydantic-settings
+httpx
