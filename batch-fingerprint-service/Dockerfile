@@ -1,53 +1,33 @@
-# -----------------------------
-# Base image
-# -----------------------------
-FROM python:3.10-slim
+# Use Python 3.11 slim image for smaller size
+FROM python:3.11-slim
 
-# -----------------------------
-# System dependencies
-# -----------------------------
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies required for audio processing
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libchromaprint-tools \
-    build-essential \
-    curl \
-    ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+    libchromaprint1 \
+    libavcodec-extra \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-
-# -----------------------------
-# Environment
-# -----------------------------
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# -----------------------------
-# Working directory
-# -----------------------------
-WORKDIR /app
-
-# -----------------------------
-# Python dependencies
-# -----------------------------
+# Copy requirements file
 COPY requirements.txt .
-COPY credentials.json .
 
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# --------------------------------------------------
-# Application code
-# --------------------------------------------------
+# Copy application code
 COPY job.py .
 
-# -----------------------------
-# Cloud Run: non-root user
-# -----------------------------
-RUN useradd --create-home appuser
-USER appuser
+# Set environment variables for Cloud Run
+ENV PYTHONUNBUFFERED=1
+ENV BATCH_SIZE=5
+ENV SIMILARITY_THRESHOLD=0.85
+ENV MAX_LIBRARY_FETCH=1000
 
-# -----------------------------
-# Start FastAPI
-# -----------------------------
+# Run the job
 CMD ["python", "job.py"]
-
