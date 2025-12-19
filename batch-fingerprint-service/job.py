@@ -296,22 +296,56 @@ class AudioFingerprintJob:
     # ---------------------------------------------
     @retry_on_failure()
     def download_recording(self, gcs_url: str, target_path: str):
-        bucket_name, path = self.parse_gcs_url(gcs_url)
-        logger.info(
-            json.dumps({
-                "message": "Downloading recording",
-                "bucket": bucket_name,
-                "path": path,
-                "severity": "INFO"
-            })
-        )
-        bucket = self.storage.bucket(bucket_name)
-        blob = bucket.blob(path)
+        # Check if GCS FUSE is available (volumes mounted)
+        use_gcs_fuse = os.path.exists("/spaza-recordings")
         
-        if not blob.exists():
-            raise ValueError(f"Blob does not exist: gs://{bucket_name}/{path}")
-        
-        blob.download_to_filename(target_path)
+        if use_gcs_fuse:
+            # Use mounted volume (faster)
+            bucket_name, path = self.parse_gcs_url(gcs_url)
+            
+            # Map bucket to mount point
+            mount_map = {
+                "spaza-recordings": "/spaza-recordings",
+                "spaza-audio-library": "/spaza-audio-library"
+            }
+            
+            if bucket_name not in mount_map:
+                raise ValueError(f"Bucket {bucket_name} is not mounted")
+            
+            source_path = os.path.join(mount_map[bucket_name], path)
+            
+            logger.info(
+                json.dumps({
+                    "message": "Copying from mounted volume",
+                    "source": source_path,
+                    "severity": "INFO"
+                })
+            )
+            
+            if not os.path.exists(source_path):
+                raise ValueError(f"File does not exist: {source_path}")
+            
+            # Copy file
+            import shutil
+            shutil.copy2(source_path, target_path)
+        else:
+            # Use Storage Client API
+            bucket_name, path = self.parse_gcs_url(gcs_url)
+            logger.info(
+                json.dumps({
+                    "message": "Downloading recording via Storage API",
+                    "bucket": bucket_name,
+                    "path": path,
+                    "severity": "INFO"
+                })
+            )
+            bucket = self.storage.bucket(bucket_name)
+            blob = bucket.blob(path)
+            
+            if not blob.exists():
+                raise ValueError(f"Blob does not exist: gs://{bucket_name}/{path}")
+            
+            blob.download_to_filename(target_path)
 
     def trim_audio(self, source: str, target: str, start: float, end: float):
         try:
@@ -425,11 +459,33 @@ class AudioFingerprintJob:
         duration: float, 
         snippet_path: str
     ) -> Tuple[int, str]:
+        # Check if GCS FUSE is available
+        use_gcs_fuse = os.path.exists("/spaza-audio-library")
+        
         blob_name = f"{uuid.uuid4().hex}.mp3"
-        blob = self.library_bucket.blob(blob_name)
-        blob.upload_from_filename(snippet_path)
-
-        media_url = blob.public_url
+        
+        if use_gcs_fuse:
+            # Use mounted volume
+            dest_path = f"/spaza-audio-library/{blob_name}"
+            
+            logger.info(
+                json.dumps({
+                    "message": "Copying to mounted volume",
+                    "destination": dest_path,
+                    "severity": "INFO"
+                })
+            )
+            
+            import shutil
+            shutil.copy2(snippet_path, dest_path)
+            
+            # Construct public URL
+            media_url = f"https://storage.googleapis.com/{LIBRARY_BUCKET}/{blob_name}"
+        else:
+            # Use Storage Client API
+            blob = self.library_bucket.blob(blob_name)
+            blob.upload_from_filename(snippet_path)
+            media_url = blob.public_url
 
         result = (
             self.supabase
