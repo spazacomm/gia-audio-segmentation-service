@@ -29,5 +29,8 @@ ENV BATCH_SIZE=5
 ENV SIMILARITY_THRESHOLD=0.85
 ENV MAX_LIBRARY_FETCH=1000
 
+ENV SUPABASE_URL=https://nclmnuzdgmcuobduhteo.supabase.co
+ENV SUPABASE_SERVICE_KEY=sb_secret_SaWrmejnvumwHLMgVqyExA_GVK3N1gg
+
 # Run the job
 CMD ["python", "job.py"]

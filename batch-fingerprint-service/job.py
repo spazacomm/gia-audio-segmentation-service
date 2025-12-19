@@ -69,8 +69,8 @@ def retry_on_failure(max_attempts=MAX_RETRIES, delay=RETRY_DELAY):
 class AudioFingerprintJob:
     def __init__(self):
         self.supabase: Client = create_client(
-            "https://nclmnuzdgmcuobduhteo.supabase.co",
-            "sb_secret_SaWrmejnvumwHLMgVqyExA_GVK3N1gg",
+            os.environ["SUPABASE_URL"],
+            os.environ["SUPABASE_SERVICE_KEY"],
         )
         self.storage = storage.Client()
         self.library_bucket = self.storage.bucket(LIBRARY_BUCKET)
