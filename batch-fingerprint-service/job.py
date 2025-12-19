@@ -102,8 +102,8 @@ class AudioFingerprintJob:
     # ---------------------------------------------
     def process_label(self, label: Dict):
         label_id = label["id"]
-        start = float(label["start_time"])
-        end = float(label["end_time"])
+        start = float(label["start_offset_seconds"])
+        end = float(label["end_offset_seconds"])
         recording_url = label["broadcast_timeline"]["recording_url"]
 
         logger.info(
