@@ -1,7 +1,7 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
   script: |
-    docker build -t us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-audio-fingerprinting-service/audio-fingerprint-service:v1 .
+    docker build -t us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-audio-fingerprinting-service/audio-fingerprint-service:v2 .
   automapSubstitutions: true
 images:
-- 'us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-audio-fingerprinting-service/audio-fingerprint-service:v1'
+- 'us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-audio-fingerprinting-service/audio-fingerprint-service:v2'
