@@ -3,7 +3,7 @@ import logging
 import sys
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
@@ -36,20 +36,22 @@ class Settings(BaseSettings):
     SUPPORTED_EXTENSIONS: List[str] = [".mp3", ".wav", ".mp4"]
     MAX_CONCURRENT_FILES: int = 3
     
-    # Webhook configuration
-    WEBHOOK_URL: Optional[str] = None
-    WEBHOOK_TOKEN: Optional[str] = None
-    WEBHOOK_BATCH_SIZE: int = 10  # Send webhooks in batches
-    WEBHOOK_TIMEOUT: int = 30
+    # Supabase configuration
+    SUPABASE_URL: str
+    SUPABASE_KEY: str  # Service role key for backend operations
+    SUPABASE_BATCH_SIZE: int = 100  # Insert segments in batches
     
-    # Output settings
+    # Source mapping (to find the correct source_id)
+    SOURCE_ID: Optional[str] = None  # If known, provide the UUID directly
+    
+    # Output settings (optional - for backup/debugging)
     OUTPUT_FORMAT: str = "json"
     OUTPUT_PATH: Optional[str] = None
 
     class Config:
         env_file = ".env"
     
-    @field_validator('COUNTRY', 'PLATFORM', 'STATION')
+    @field_validator('COUNTRY', 'PLATFORM', 'STATION', 'SUPABASE_URL', 'SUPABASE_KEY')
     @classmethod
     def validate_required_fields(cls, v: str, info) -> str:
         if not v or not v.strip():
@@ -72,18 +74,15 @@ class SegmentResult(BaseModel):
 class FileProcessingResult(BaseModel):
     file_path: str
     relative_path: str
+    broadcast_datetime: datetime
     status: str
     segments: List[SegmentResult]
     total_segments: int
     processing_time: float
+    duration_seconds: Optional[float] = None
     error: Optional[str] = None
     processed_at: str
-
-class WebhookDeliveryResult(BaseModel):
-    success: bool
-    status_code: Optional[int] = None
-    error: Optional[str] = None
-    attempt: int
+    timeline_id: Optional[int] = None  # Set after DB insert
 
 class JobResult(BaseModel):
     job_id: str
@@ -92,9 +91,165 @@ class JobResult(BaseModel):
     total_files: int
     successful: int
     failed: int
-    webhook_deliveries: int
-    webhook_failures: int
+    db_inserts: int
+    db_failures: int
     files: List[FileProcessingResult]
+
+# --- Supabase Client ---
+class SupabaseClient:
+    def __init__(self):
+        self.base_url = settings.SUPABASE_URL.rstrip('/')
+        self.headers = {
+            "apikey": settings.SUPABASE_KEY,
+            "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
+        self.http_client: Optional[httpx.AsyncClient] = None
+    
+    async def __aenter__(self):
+        self.http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+        )
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.http_client:
+            await self.http_client.aclose()
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        reraise=True
+    )
+    async def get_source_id(self) -> Optional[str]:
+        """Get or verify the source_id based on configuration"""
+        if settings.SOURCE_ID:
+            logger.info(f"Using provided SOURCE_ID: {settings.SOURCE_ID}")
+            return settings.SOURCE_ID
+        
+        # Query sources table to find matching source
+        url = f"{self.base_url}/rest/v1/sources"
+        params = {
+            "select": "id,name",
+            "name": f"eq.{settings.STATION}",
+            "limit": 1
+        }
+        
+        response = await self.http_client.get(url, headers=self.headers, params=params)
+        response.raise_for_status()
+        
+        sources = response.json()
+        if sources:
+            source_id = sources[0]['id']
+            logger.info(f"Found source_id: {source_id} for station: {settings.STATION}")
+            return source_id
+        
+        logger.warning(f"No source found for station: {settings.STATION}")
+        return None
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        reraise=True
+    )
+    async def create_broadcast_timeline(self, result: FileProcessingResult, source_id: str) -> Optional[int]:
+        """Create a broadcast_timeline record"""
+        url = f"{self.base_url}/rest/v1/broadcast_timeline"
+        
+        payload = {
+            "broadcast_datetime": result.broadcast_datetime.isoformat(),
+            "source_id": source_id,
+            "status": "completed" if result.status == "success" else "failed",
+            "recording_url": result.file_path,
+            "duration_seconds": result.duration_seconds,
+            "processed_at": result.processed_at,
+            "segmentation_processed": True,
+            "metadata": {
+                "relative_path": result.relative_path,
+                "processing_time": result.processing_time,
+                "country": settings.COUNTRY,
+                "platform": settings.PLATFORM,
+                "station": settings.STATION
+            }
+        }
+        
+        try:
+            response = await self.http_client.post(
+                url,
+                headers=self.headers,
+                json=payload
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            if data and len(data) > 0:
+                timeline_id = data[0]['id']
+                logger.info(f"Created broadcast_timeline {timeline_id} for {result.relative_path}")
+                return timeline_id
+            
+            logger.error(f"No data returned when creating broadcast_timeline for {result.relative_path}")
+            return None
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to create broadcast_timeline: {e.response.status_code} - {e.response.text}")
+            raise
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        reraise=True
+    )
+    async def create_timeline_labels_batch(self, timeline_id: int, segments: List[SegmentResult]) -> int:
+        """Create timeline_labels records in batch"""
+        if not segments:
+            return 0
+        
+        url = f"{self.base_url}/rest/v1/timeline_labels"
+        
+        # Process in batches
+        total_inserted = 0
+        
+        for i in range(0, len(segments), settings.SUPABASE_BATCH_SIZE):
+            batch = segments[i:i + settings.SUPABASE_BATCH_SIZE]
+            
+            payload = [
+                {
+                    "timeline_id": timeline_id,
+                    "label": seg.label,
+                    "start_time": seg.start_time,
+                    "end_time": seg.end_time,
+                    "fingerprint_processed": False,
+                    "transcription_processed": False,
+                    "fingerprint_matched": False
+                }
+                for seg in batch
+            ]
+            
+            try:
+                response = await self.http_client.post(
+                    url,
+                    headers=self.headers,
+                    json=payload
+                )
+                response.raise_for_status()
+                
+                data = response.json()
+                inserted = len(data) if data else 0
+                total_inserted += inserted
+                
+                logger.info(f"Inserted batch {i//settings.SUPABASE_BATCH_SIZE + 1}: {inserted} segments")
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Failed to insert segment batch: {e.response.status_code} - {e.response.text}")
+                raise
+        
+        logger.info(f"Total segments inserted for timeline {timeline_id}: {total_inserted}")
+        return total_inserted
 
 # --- Processing Logic ---
 class AudioProcessor:
@@ -102,21 +257,19 @@ class AudioProcessor:
         self.segmenter = Segmenter()
         self.storage_client = storage.Client()
         self.bucket = self.storage_client.bucket(settings.BUCKET_NAME)
-        self.http_client: Optional[httpx.AsyncClient] = None
+        self.supabase: Optional[SupabaseClient] = None
         logger.info("Initialized InaSpeech Segmenter and GCS client")
     
     async def __aenter__(self):
         """Async context manager entry"""
-        self.http_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(settings.WEBHOOK_TIMEOUT),
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
-        )
+        self.supabase = SupabaseClient()
+        await self.supabase.__aenter__()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
-        if self.http_client:
-            await self.http_client.aclose()
+        if self.supabase:
+            await self.supabase.__aexit__(exc_type, exc_val, exc_tb)
     
     def get_prefix(self) -> str:
         """Construct the GCS prefix from environment variables"""
@@ -125,6 +278,46 @@ class AudioProcessor:
             prefix = f"{prefix}/{settings.DATE}"
         logger.info(f"GCS prefix: {prefix}")
         return prefix
+    
+    def extract_broadcast_datetime(self, blob_name: str) -> datetime:
+        """Extract broadcast datetime from filename or path"""
+        # Expected format: COUNTRY/PLATFORM/STATION/YYYY-MM-DD/filename.ext
+        # or filename contains datetime like: station_2024-01-15_14-30-00.mp3
+        
+        try:
+            parts = blob_name.split('/')
+            
+            # Try to find date in path
+            for part in parts:
+                # Try YYYY-MM-DD format
+                if len(part) == 10 and part.count('-') == 2:
+                    try:
+                        date_obj = datetime.strptime(part, '%Y-%m-%d')
+                        # If we have time in filename, extract it
+                        filename = parts[-1]
+                        # Look for time patterns like HH-MM-SS or HH_MM_SS
+                        if '_' in filename or '-' in filename:
+                            time_parts = filename.replace('.', '_').split('_')
+                            for tp in time_parts:
+                                if len(tp) >= 6 and tp.replace('-', '').isdigit():
+                                    time_str = tp.replace('-', ':')[:8]
+                                    try:
+                                        time_obj = datetime.strptime(time_str, '%H:%M:%S').time()
+                                        return datetime.combine(date_obj.date(), time_obj, tzinfo=timezone.utc)
+                                    except:
+                                        pass
+                        # Default to start of day if no time found
+                        return date_obj.replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        continue
+            
+            # Fallback: use file modification time or current time
+            logger.warning(f"Could not extract datetime from {blob_name}, using current time")
+            return datetime.now(timezone.utc)
+            
+        except Exception as e:
+            logger.warning(f"Error extracting datetime from {blob_name}: {e}, using current time")
+            return datetime.now(timezone.utc)
     
     def find_audio_files(self) -> List[storage.Blob]:
         """List all audio files in the GCS bucket with the given prefix"""
@@ -150,12 +343,20 @@ class AudioProcessor:
         """Download and process a single audio file with retry logic"""
         start_time = datetime.now(timezone.utc)
         relative_path = blob.name[len(prefix):].lstrip('/')
+        broadcast_datetime = self.extract_broadcast_datetime(blob.name)
         
-        logger.info(f"Processing: {relative_path}")
+        logger.info(f"Processing: {relative_path} (broadcast: {broadcast_datetime})")
         
         try:
             # Run blocking I/O in thread pool
-            result = await asyncio.to_thread(self._process_file_sync, blob, prefix, relative_path, start_time)
+            result = await asyncio.to_thread(
+                self._process_file_sync, 
+                blob, 
+                prefix, 
+                relative_path, 
+                broadcast_datetime,
+                start_time
+            )
             return result
                 
         except Exception as e:
@@ -165,6 +366,7 @@ class AudioProcessor:
             return FileProcessingResult(
                 file_path=f"gs://{settings.BUCKET_NAME}/{blob.name}",
                 relative_path=relative_path,
+                broadcast_datetime=broadcast_datetime,
                 status="failed",
                 segments=[],
                 total_segments=0,
@@ -173,7 +375,14 @@ class AudioProcessor:
                 processed_at=datetime.now(timezone.utc).isoformat()
             )
     
-    def _process_file_sync(self, blob: storage.Blob, prefix: str, relative_path: str, start_time: datetime) -> FileProcessingResult:
+    def _process_file_sync(
+        self, 
+        blob: storage.Blob, 
+        prefix: str, 
+        relative_path: str,
+        broadcast_datetime: datetime,
+        start_time: datetime
+    ) -> FileProcessingResult:
         """Synchronous file processing logic"""
         suffix = Path(blob.name).suffix
         tmp_path = None
@@ -198,6 +407,9 @@ class AudioProcessor:
                 for seg in segments
             ]
             
+            # Calculate duration from segments
+            duration = max([seg.end_time for seg in results]) if results else None
+            
             processing_time = (datetime.now(timezone.utc) - start_time).total_seconds()
             
             logger.info(f"Completed {relative_path}: {len(results)} segments in {processing_time:.2f}s")
@@ -205,9 +417,11 @@ class AudioProcessor:
             return FileProcessingResult(
                 file_path=f"gs://{settings.BUCKET_NAME}/{blob.name}",
                 relative_path=relative_path,
+                broadcast_datetime=broadcast_datetime,
                 status="success",
                 segments=results,
                 total_segments=len(results),
+                duration_seconds=duration,
                 processing_time=processing_time,
                 processed_at=datetime.now(timezone.utc).isoformat()
             )
@@ -219,63 +433,31 @@ class AudioProcessor:
                 except Exception as e:
                     logger.warning(f"Failed to clean up temp file {tmp_path}: {e}")
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
-        reraise=False
-    )
-    async def send_webhook(self, data: dict, attempt: int = 1) -> WebhookDeliveryResult:
-        """Send results to configured webhook with retry logic"""
-        if not settings.WEBHOOK_URL or not self.http_client:
-            return WebhookDeliveryResult(success=True, attempt=attempt)
-        
-        headers = {"Content-Type": "application/json"}
-        if settings.WEBHOOK_TOKEN:
-            headers["Authorization"] = f"Bearer {settings.WEBHOOK_TOKEN}"
-        
+    async def save_to_database(self, result: FileProcessingResult, source_id: str) -> bool:
+        """Save processing result to Supabase database"""
         try:
-            res = await self.http_client.post(
-                settings.WEBHOOK_URL,
-                json=data,
-                headers=headers
-            )
-            res.raise_for_status()
-            logger.info(f"Webhook delivered successfully (attempt {attempt}): {res.status_code}")
-            return WebhookDeliveryResult(
-                success=True,
-                status_code=res.status_code,
-                attempt=attempt
-            )
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Webhook failed with status {e.response.status_code} (attempt {attempt}): {e}")
-            return WebhookDeliveryResult(
-                success=False,
-                status_code=e.response.status_code,
-                error=str(e),
-                attempt=attempt
-            )
+            # Create broadcast_timeline record
+            timeline_id = await self.supabase.create_broadcast_timeline(result, source_id)
+            
+            if not timeline_id:
+                logger.error(f"Failed to create timeline for {result.relative_path}")
+                return False
+            
+            result.timeline_id = timeline_id
+            
+            # Create timeline_labels records
+            if result.segments:
+                await self.supabase.create_timeline_labels_batch(timeline_id, result.segments)
+            
+            return True
+            
         except Exception as e:
-            logger.error(f"Webhook failed (attempt {attempt}): {e}")
-            return WebhookDeliveryResult(
-                success=False,
-                error=str(e),
-                attempt=attempt
-            )
-    
-    async def send_batch_webhook(self, results: List[FileProcessingResult]) -> WebhookDeliveryResult:
-        """Send a batch of results to webhook"""
-        batch_data = {
-            "batch": True,
-            "count": len(results),
-            "results": [r.model_dump() for r in results]
-        }
-        return await self.send_webhook(batch_data)
+            logger.error(f"Database error for {result.relative_path}: {e}", exc_info=True)
+            return False
     
     async def save_results(self, results: JobResult):
-        """Save results to GCS if OUTPUT_PATH is configured"""
+        """Save results to GCS if OUTPUT_PATH is configured (for backup/debugging)"""
         if not settings.OUTPUT_PATH:
-            logger.info("No output path configured, skipping file save")
             return
         
         tmp_path = None
@@ -312,6 +494,12 @@ async def run_job():
                 f"station={settings.STATION}, date={settings.DATE or 'all'}")
     
     async with AudioProcessor() as processor:
+        # Get source_id
+        source_id = await processor.supabase.get_source_id()
+        if not source_id:
+            logger.error("Could not determine source_id. Please set SOURCE_ID or ensure station exists in database.")
+            sys.exit(1)
+        
         # Find files
         prefix = processor.get_prefix()
         audio_blobs = await asyncio.to_thread(processor.find_audio_files)
@@ -344,27 +532,19 @@ async def run_job():
         successful = sum(1 for r in results if r.status == "success")
         failed = sum(1 for r in results if r.status == "failed")
         
-        # Send webhooks in batches
-        webhook_successes = 0
-        webhook_failures = 0
+        # Save to database
+        logger.info("Saving results to Supabase database...")
+        db_successes = 0
+        db_failures = 0
         
-        if settings.WEBHOOK_URL:
-            logger.info(f"Sending results to webhook in batches of {settings.WEBHOOK_BATCH_SIZE}")
-            
-            for i in range(0, len(results), settings.WEBHOOK_BATCH_SIZE):
-                batch = results[i:i + settings.WEBHOOK_BATCH_SIZE]
-                webhook_result = await processor.send_batch_webhook(batch)
-                
-                if webhook_result.success:
-                    webhook_successes += 1
+        for result in results:
+            if result.status == "success":
+                if await processor.save_to_database(result, source_id):
+                    db_successes += 1
                 else:
-                    webhook_failures += 1
-                
-                # Small delay between batches to avoid overwhelming webhook
-                if i + settings.WEBHOOK_BATCH_SIZE < len(results):
-                    await asyncio.sleep(0.5)
-            
-            logger.info(f"Webhook delivery: {webhook_successes} successful, {webhook_failures} failed batches")
+                    db_failures += 1
+        
+        logger.info(f"Database operations: {db_successes} successful, {db_failures} failed")
         
         job_end = datetime.now(timezone.utc)
         
@@ -376,19 +556,19 @@ async def run_job():
             total_files=len(audio_blobs),
             successful=successful,
             failed=failed,
-            webhook_deliveries=webhook_successes,
-            webhook_failures=webhook_failures,
+            db_inserts=db_successes,
+            db_failures=db_failures,
             files=results
         )
         
         logger.info(f"Job completed: {successful} successful, {failed} failed out of {len(audio_blobs)} files")
         logger.info(f"Total time: {(job_end - job_start).total_seconds():.2f}s")
         
-        # Save results to GCS if configured
+        # Save results to GCS if configured (optional backup)
         await processor.save_results(job_result)
         
         # Exit with appropriate code
-        sys.exit(0 if failed == 0 else 1)
+        sys.exit(0 if (failed == 0 and db_failures == 0) else 1)
 
 # --- Entry Point ---
 if __name__ == "__main__":
