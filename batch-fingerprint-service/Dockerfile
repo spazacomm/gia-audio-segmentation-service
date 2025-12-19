@@ -19,8 +19,7 @@ RUN apt-get update && apt-get install -y \
 # Environment
 # -----------------------------
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PORT=8080
+    PYTHONUNBUFFERED=1
 
 # -----------------------------
 # Working directory
@@ -36,10 +35,10 @@ COPY credentials.json .
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
-# -----------------------------
+# --------------------------------------------------
 # Application code
-# -----------------------------
-COPY . .
+# --------------------------------------------------
+COPY job.py .
 
 # -----------------------------
 # Cloud Run: non-root user
@@ -48,11 +47,7 @@ RUN useradd --create-home appuser
 USER appuser
 
 # -----------------------------
-# Expose port (Cloud Run uses $PORT)
-# -----------------------------
-EXPOSE 8080
-
-# -----------------------------
 # Start FastAPI
 # -----------------------------
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["python", "job.py"]
+
