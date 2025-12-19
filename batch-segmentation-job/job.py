@@ -77,7 +77,7 @@ class AudioProcessor:
     
     def get_base_directory(self) -> Path:
         """Construct the base directory path from environment variables"""
-        base_path = Path(settings.MOUNT_PATH) / settings.COUNTRY / settings.PLATFORM / settings.STATION
+        base_path = Path(settings.MOUNT_PATH) / settings.BUCKET_NAME  / settings.COUNTRY / settings.PLATFORM / settings.STATION
         
         if settings.DATE:
             base_path = base_path / settings.DATE
