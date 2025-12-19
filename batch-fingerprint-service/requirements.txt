@@ -1,8 +1,7 @@
 fastapi
 uvicorn
 pydub
-acoustid
-chromaprint
+pyacoustid
 google-cloud-storage
 supabase
 requests

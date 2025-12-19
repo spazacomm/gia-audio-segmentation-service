@@ -6,14 +6,14 @@ FROM python:3.10-slim
 # -----------------------------
 # System dependencies
 # -----------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     ffmpeg \
-    chromaprint \
-    libchromaprint1 \
+    libchromaprint-tools \
     build-essential \
     curl \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
+
 
 # -----------------------------
 # Environment
