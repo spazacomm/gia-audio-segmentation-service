@@ -3,3 +3,4 @@ pydantic
 pydantic-settings
 httpx
 google-cloud-storage
+tenacity
