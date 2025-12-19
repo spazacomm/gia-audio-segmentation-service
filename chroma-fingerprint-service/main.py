@@ -17,7 +17,7 @@ from google.cloud import storage
 SOURCE_BUCKET_NAME = os.getenv("SOURCE_BUCKET", "spaza-recordings")
 
 # Bucket to store snippets and the index
-LIBRARY_BUCKET_NAME = os.getenv("LIBRARY_BUCKET", "audio-library")
+LIBRARY_BUCKET_NAME = os.getenv("LIBRARY_BUCKET", "spaza-audio-library")
 INDEX_FILE = "fingerprints.json"
 
 SIMILARITY_THRESHOLD = 0.85  # 85% match required
