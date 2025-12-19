@@ -99,10 +99,13 @@ class AudioProcessor:
         logger.info(f"Total audio files found: {len(audio_blobs)}")
         return sorted(audio_blobs, key=lambda b: b.name)
     
-    def process_file(self, blob: storage.Blob, prefix: str) -> FileProcessingResult:
+    async def process_file(self, blob: storage.Blob, prefix: str) -> FileProcessingResult:
         """Download and process a single audio file"""
         start_time = datetime.now()
         relative_path = blob.name[len(prefix):].lstrip('/')
+
+         
+        processor = AudioProcessor()
         
         logger.info(f"Processing: {relative_path}")
         
@@ -130,7 +133,7 @@ class AudioProcessor:
                 
                 logger.info(f"Completed {relative_path}: {len(results)} segments in {processing_time:.2f}s")
                 
-                return FileProcessingResult(
+                job_result = FileProcessingResult(
                     file_path=f"gs://{settings.BUCKET_NAME}/{blob.name}",
                     relative_path=relative_path,
                     status="success",
@@ -138,6 +141,11 @@ class AudioProcessor:
                     total_segments=len(results),
                     processing_time=processing_time
                 )
+            
+
+                # Send webhook
+                await processor.send_webhook(job_result.dict())
+
             finally:
                 # Clean up temp file
                 os.unlink(tmp_path)
@@ -269,8 +277,6 @@ async def run_job():
     # Save results
     processor.save_results(job_result)
     
-    # Send webhook
-    await processor.send_webhook(job_result.dict())
     
     # Exit with appropriate code
     sys.exit(0 if failed == 0 else 1)
