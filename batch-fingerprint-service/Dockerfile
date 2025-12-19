@@ -31,6 +31,7 @@ WORKDIR /app
 # Python dependencies
 # -----------------------------
 COPY requirements.txt .
+COPY credentials.json .
 
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
