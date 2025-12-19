@@ -1,6 +1,7 @@
 import os
 import logging
 import sys
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
@@ -9,6 +10,7 @@ import httpx
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 from inaSpeechSegmenter import Segmenter
+from google.cloud import storage
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 # --- Configuration ---
 class Settings(BaseSettings):
-    # Mount point for GCS bucket
-    MOUNT_PATH: str = "/mnt/gcs"
     BUCKET_NAME: str = "spaza-recordings"
     
     # Directory structure parameters
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     
     # Output settings
     OUTPUT_FORMAT: str = "json"  # json or csv
-    OUTPUT_PATH: Optional[str] = None  # If None, sends to webhook only
+    OUTPUT_PATH: Optional[str] = None  # GCS path for results (e.g., "results/output.json")
 
     class Config:
         env_file = ".env"
@@ -73,74 +73,81 @@ class JobResult(BaseModel):
 class AudioProcessor:
     def __init__(self):
         self.segmenter = Segmenter()
-        logger.info("Initialized InaSpeech Segmenter")
+        self.storage_client = storage.Client()
+        self.bucket = self.storage_client.bucket(settings.BUCKET_NAME)
+        logger.info("Initialized InaSpeech Segmenter and GCS client")
     
-    def get_base_directory(self) -> Path:
-        """Construct the base directory path from environment variables"""
-        base_path = Path(settings.MOUNT_PATH) / settings.BUCKET_NAME  / settings.COUNTRY / settings.PLATFORM / settings.STATION
-        
+    def get_prefix(self) -> str:
+        """Construct the GCS prefix from environment variables"""
+        prefix = f"{settings.COUNTRY}/{settings.PLATFORM}/{settings.STATION}"
         if settings.DATE:
-            base_path = base_path / settings.DATE
-        
-        logger.info(f"Base directory: {base_path}")
-        return base_path
+            prefix = f"{prefix}/{settings.DATE}"
+        logger.info(f"GCS prefix: {prefix}")
+        return prefix
     
-    def find_audio_files(self, base_dir: Path) -> List[Path]:
-        """Recursively find all audio files in the directory"""
-        audio_files = []
+    def find_audio_files(self) -> List[storage.Blob]:
+        """List all audio files in the GCS bucket with the given prefix"""
+        prefix = self.get_prefix()
+        audio_blobs = []
         
-        if not base_dir.exists():
-            logger.error(f"Directory does not exist: {base_dir}")
-            return audio_files
+        blobs = self.storage_client.list_blobs(settings.BUCKET_NAME, prefix=prefix)
         
-        for ext in settings.SUPPORTED_EXTENSIONS:
-            # Use rglob for recursive search
-            files = list(base_dir.rglob(f"*{ext}"))
-            audio_files.extend(files)
-            logger.info(f"Found {len(files)} {ext} files")
+        for blob in blobs:
+            if any(blob.name.lower().endswith(ext) for ext in settings.SUPPORTED_EXTENSIONS):
+                audio_blobs.append(blob)
         
-        logger.info(f"Total audio files found: {len(audio_files)}")
-        return sorted(audio_files)
+        logger.info(f"Total audio files found: {len(audio_blobs)}")
+        return sorted(audio_blobs, key=lambda b: b.name)
     
-    def process_file(self, file_path: Path, base_dir: Path) -> FileProcessingResult:
-        """Process a single audio file"""
+    def process_file(self, blob: storage.Blob, prefix: str) -> FileProcessingResult:
+        """Download and process a single audio file"""
         start_time = datetime.now()
-        relative_path = str(file_path.relative_to(base_dir))
+        relative_path = blob.name[len(prefix):].lstrip('/')
         
         logger.info(f"Processing: {relative_path}")
         
         try:
-            # Run segmentation
-            segments = self.segmenter(str(file_path))
+            # Download to temp file
+            suffix = Path(blob.name).suffix
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
+                tmp_path = tmp_file.name
+                blob.download_to_filename(tmp_path)
             
-            results = [
-                SegmentResult(
-                    label=seg[0],
-                    start_time=float(seg[1]),
-                    end_time=float(seg[2])
+            try:
+                # Run segmentation
+                segments = self.segmenter(tmp_path)
+                
+                results = [
+                    SegmentResult(
+                        label=seg[0],
+                        start_time=float(seg[1]),
+                        end_time=float(seg[2])
+                    )
+                    for seg in segments
+                ]
+                
+                processing_time = (datetime.now() - start_time).total_seconds()
+                
+                logger.info(f"Completed {relative_path}: {len(results)} segments in {processing_time:.2f}s")
+                
+                return FileProcessingResult(
+                    file_path=f"gs://{settings.BUCKET_NAME}/{blob.name}",
+                    relative_path=relative_path,
+                    status="success",
+                    segments=results,
+                    total_segments=len(results),
+                    processing_time=processing_time
                 )
-                for seg in segments
-            ]
-            
-            processing_time = (datetime.now() - start_time).total_seconds()
-            
-            logger.info(f"Completed {relative_path}: {len(results)} segments in {processing_time:.2f}s")
-            
-            return FileProcessingResult(
-                file_path=str(file_path),
-                relative_path=relative_path,
-                status="success",
-                segments=results,
-                total_segments=len(results),
-                processing_time=processing_time
-            )
-            
+            finally:
+                # Clean up temp file
+                os.unlink(tmp_path)
+                
         except Exception as e:
             processing_time = (datetime.now() - start_time).total_seconds()
             logger.error(f"Failed to process {relative_path}: {e}", exc_info=True)
             
             return FileProcessingResult(
-                file_path=str(file_path),
+                file_path=f"gs://{settings.BUCKET_NAME}/{blob.name}",
                 relative_path=relative_path,
                 status="failed",
                 segments=[],
@@ -172,24 +179,21 @@ class AudioProcessor:
                 logger.error(f"Failed to send webhook: {e}")
     
     def save_results(self, results: JobResult):
-        """Save results to file if OUTPUT_PATH is configured"""
+        """Save results to GCS if OUTPUT_PATH is configured"""
         if not settings.OUTPUT_PATH:
             logger.info("No output path configured, skipping file save")
             return
         
-        output_path = Path(settings.OUTPUT_PATH)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        if settings.OUTPUT_FORMAT == "json":
-            import json
-            with open(output_path, 'w') as f:
-                json.dump(results.dict(), f, indent=2)
-            logger.info(f"Results saved to {output_path}")
-        
-        elif settings.OUTPUT_FORMAT == "csv":
-            import csv
-            with open(output_path, 'w', newline='') as f:
-                writer = csv.writer(f)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.tmp', delete=False) as tmp_file:
+            tmp_path = tmp_file.name
+            
+            if settings.OUTPUT_FORMAT == "json":
+                import json
+                json.dump(results.dict(), tmp_file, indent=2)
+            
+            elif settings.OUTPUT_FORMAT == "csv":
+                import csv
+                writer = csv.writer(tmp_file)
                 writer.writerow([
                     "file_path", "relative_path", "status", 
                     "total_segments", "processing_time", "error"
@@ -203,7 +207,14 @@ class AudioProcessor:
                         file_result.processing_time,
                         file_result.error or ""
                     ])
-            logger.info(f"Results saved to {output_path}")
+        
+        try:
+            # Upload to GCS
+            output_blob = self.bucket.blob(settings.OUTPUT_PATH)
+            output_blob.upload_from_filename(tmp_path)
+            logger.info(f"Results saved to gs://{settings.BUCKET_NAME}/{settings.OUTPUT_PATH}")
+        finally:
+            os.unlink(tmp_path)
 
 # --- Main Job Logic ---
 async def run_job():
@@ -218,10 +229,10 @@ async def run_job():
     processor = AudioProcessor()
     
     # Find files
-    base_dir = processor.get_base_directory()
-    audio_files = processor.find_audio_files(base_dir)
+    prefix = processor.get_prefix()
+    audio_blobs = processor.find_audio_files()
     
-    if not audio_files:
+    if not audio_blobs:
         logger.warning("No audio files found to process")
         return
     
@@ -230,8 +241,8 @@ async def run_job():
     successful = 0
     failed = 0
     
-    for file_path in audio_files:
-        result = processor.process_file(file_path, base_dir)
+    for blob in audio_blobs:
+        result = processor.process_file(blob, prefix)
         results.append(result)
         
         if result.status == "success":
@@ -246,13 +257,13 @@ async def run_job():
         job_id=job_id,
         start_time=job_start.isoformat(),
         end_time=job_end.isoformat(),
-        total_files=len(audio_files),
+        total_files=len(audio_blobs),
         successful=successful,
         failed=failed,
         files=results
     )
     
-    logger.info(f"Job completed: {successful} successful, {failed} failed out of {len(audio_files)} files")
+    logger.info(f"Job completed: {successful} successful, {failed} failed out of {len(audio_blobs)} files")
     logger.info(f"Total time: {(job_end - job_start).total_seconds():.2f}s")
     
     # Save results
