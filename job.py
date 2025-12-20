@@ -197,14 +197,14 @@ class AudioProcessor:
     
     def build_gcs_prefix(self, source: Dict[str, Any]) -> str:
         """Build GCS path from source metadata"""
-        country = source['countries']['code']
+        country = source['countries']['name']
         platform = source['platforms']['name']
         station = source['name']
         
         # Normalize names (lowercase, remove spaces)
         country = country.lower().strip()
         platform = platform.lower().strip().replace(' ', '')
-        station = station.lower().strip().replace(' ', '')
+        station = station.lower().strip().replace(' ', '-')
         
         return f"{country}/{platform}/{station}/{settings.DATE}/"
     
