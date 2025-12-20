@@ -306,9 +306,10 @@ class AudioFingerprintJob:
                 # Generate fingerprint
                 duration, fp_encoded = acoustid.fingerprint_file(snippet_path)
                 
-                # Ensure proper encoding
-                if isinstance(fp_encoded, bytes):
-                    fp_encoded = fp_encoded.decode('utf-8')
+                # acoustid returns bytes, keep it as bytes for chromaprint
+                # chromaprint.decode_fingerprint expects bytes, not string
+                if isinstance(fp_encoded, str):
+                    fp_encoded = fp_encoded.encode('utf-8')
                 
                 fp_ints, _ = chromaprint.decode_fingerprint(fp_encoded)
                 
@@ -330,8 +331,11 @@ class AudioFingerprintJob:
                     )
                 else:
                     # Create new audio library entry
+                    # Store as string in database (decode bytes to string)
+                    fp_encoded_str = fp_encoded.decode('utf-8') if isinstance(fp_encoded, bytes) else fp_encoded
+                    
                     audio_id, media_url = self.insert_audio(
-                        fp_encoded, 
+                        fp_encoded_str, 
                         duration, 
                         snippet_path
                     )
@@ -443,18 +447,21 @@ class AudioFingerprintJob:
     
     def find_match(
         self, 
-        fp_encoded: str, 
+        fp_encoded: bytes,  # Now expects bytes
         fp_ints: List[int]
     ) -> Optional[Tuple[int, float, str]]:
         """
         Find matching fingerprint in audio library.
         First tries exact match, then similarity search on recent entries.
         """
+        # Convert to string for database comparison
+        fp_encoded_str = fp_encoded.decode('utf-8') if isinstance(fp_encoded, bytes) else fp_encoded
+        
         # Step 1: Try exact match (instant lookup)
         try:
             exact_match = self.supabase.table("audio_library") \
                 .select("id, media_url") \
-                .eq("fingerprint_hash", fp_encoded) \
+                .eq("fingerprint_hash", fp_encoded_str) \
                 .limit(1) \
                 .execute()
             
@@ -487,7 +494,7 @@ class AudioFingerprintJob:
                 try:
                     stored_fp_encoded = row["fingerprint_hash"]
                     
-                    # Ensure proper encoding
+                    # Database stores as string, convert to bytes for chromaprint
                     if isinstance(stored_fp_encoded, str):
                         stored_fp_encoded = stored_fp_encoded.encode('utf-8')
                     
