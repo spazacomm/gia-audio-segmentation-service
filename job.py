@@ -94,7 +94,7 @@ class SupabaseClient:
         """Get source details from database"""
         try:
             response = self.client.table('sources').select(
-                'id, name, countries(code), platforms(name)'
+                'id, name, countries(code,name), platforms(name)'
             ).eq('id', source_id).single().execute()
             return response.data
         except Exception as e:
