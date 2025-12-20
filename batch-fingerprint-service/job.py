@@ -4,6 +4,7 @@ import json
 import uuid
 import tempfile
 import logging
+import hashlib
 from typing import Dict, List, Optional, Tuple
 
 from pydub import AudioSegment
@@ -459,9 +460,11 @@ class AudioFingerprintJob:
         
         # Step 1: Try exact match (instant lookup)
         try:
+            fp_md5 = self.fingerprint_md5(fp_encoded_str)
+
             exact_match = self.supabase.table("audio_library") \
                 .select("id, media_url") \
-                .eq("fingerprint_hash", fp_encoded_str) \
+                .eq("fingerprint_md5", fp_md5) \
                 .limit(1) \
                 .execute()
             
@@ -479,7 +482,7 @@ class AudioFingerprintJob:
         # Most duplicates are recent (same songs/jingles recurring)
         try:
             rows = self.supabase.table("audio_library") \
-                .select("id, fingerprint_hash, media_url") \
+                .select("id, fingerprint_raw, media_url") \
                 .order("created_at", desc=True) \
                 .limit(MAX_LIBRARY_SEARCH) \
                 .execute() \
@@ -574,12 +577,16 @@ class AudioFingerprintJob:
             )
             
             # Insert into audio_library
+            fp_md5 = self.fingerprint_md5(fp_encoded)
+
             result = self.supabase.table("audio_library").insert({
-                "fingerprint_hash": fp_encoded,
+                "fingerprint_raw": fp_encoded,      # full fingerprint (NOT indexed)
+                "fingerprint_md5": fp_md5,           # indexed lookup key
                 "audio_type": "unknown",
                 "duration_seconds": duration,
                 "media_url": media_url,
             }).execute()
+
             
             audio_id = result.data[0]["id"]
             
@@ -666,6 +673,8 @@ class AudioFingerprintJob:
             })
         )
 
+    def fingerprint_md5(self, fp_encoded: str) -> str:
+        return hashlib.md5(fp_encoded.encode("utf-8")).hexdigest()
 
 # ============================================================
 # ENTRY POINT
