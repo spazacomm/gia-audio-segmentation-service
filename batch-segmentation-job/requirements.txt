@@ -3,4 +3,5 @@ pydantic
 pydantic-settings
 httpx
 google-cloud-storage
-tenacity
+supabase
+python-dotenv
