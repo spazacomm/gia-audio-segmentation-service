@@ -6,7 +6,7 @@ import asyncio
 import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings
@@ -279,13 +279,17 @@ class AudioProcessor:
                 self.db_client.update_broadcast_status(broadcast_id, 'completed', True)
                 return True
             
+            broadcast_dt = broadcast_datetime.replace(tzinfo=timezone.utc)
+
             # Prepare segments for insertion
             segment_records = [
                 {
                     'timeline_id': broadcast_id,
                     'label': seg.label,
-                    'start_time': seg.start_time,
-                    'end_time': seg.end_time,
+                    'start_time': (broadcast_dt + timedelta(seconds=seg.start_time)).isoformat(),
+                    'end_time': (broadcast_dt + timedelta(seconds=seg.end_time)).isoformat(),
+                    'start_offset_seconds':seg.start_time,
+                    'end_offset_seconds': seg.end_time,
                     'fingerprint_processed': False,
                     'transcription_processed': False
                 }
