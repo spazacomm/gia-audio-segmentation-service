@@ -185,14 +185,27 @@ class AudioProcessor:
         logger.info("Audio processor initialized")
     
     def parse_datetime_from_filename(self, filename: str) -> Optional[datetime]:
-        """Extract datetime from filename pattern YYYYMMDD_HHMMSS"""
-        match = re.search(r'(\d{8})_(\d{6})', filename)
-        if match:
-            date_str, time_str = match.groups()
-            try:
-                return datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
-            except ValueError:
-                pass
+    
+        patterns = [
+            # YYYY-MM-DD_HH-MM-SS
+            (r'(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})',
+            "%Y-%m-%d %H:%M:%S",
+            lambda d, t: f"{d} {t.replace('-', ':')}"),
+
+            # YYYYMMDD_HHMMSS
+            (r'(\d{8})_(\d{6})',
+            "%Y%m%d%H%M%S",
+            lambda d, t: f"{d}{t}")
+        ]
+
+        for pattern, fmt, builder in patterns:
+            match = re.search(pattern, filename)
+            if match:
+                try:
+                    return datetime.strptime(builder(*match.groups()), fmt)
+                except ValueError:
+                    continue
+
         return None
     
     def build_gcs_prefix(self, source: Dict[str, Any]) -> str:
