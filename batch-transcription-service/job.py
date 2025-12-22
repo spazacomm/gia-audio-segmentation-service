@@ -139,12 +139,11 @@ class SupabaseClient:
         """Update label with transcription results"""
         try:
             update_data = {
-                'transcription': transcription,
-                'transcription_confidence': confidence,
-                'transcription_language': language,
+                'transcript': transcription,
+                'transcript_confidence': confidence,
+                'transcript_language': language,
                 'transcription_processed': True,
-                'transcription_processed_at': datetime.now(timezone.utc).isoformat(),
-                'updated_at': datetime.now(timezone.utc).isoformat()
+                'processing_completed_at': datetime.now(timezone.utc).isoformat()
             }
             
             self.client.table('timeline_labels')\
@@ -163,8 +162,7 @@ class SupabaseClient:
             update_data = {
                 'transcription_processed': True,
                 'transcription_error': error_message,
-                'transcription_processed_at': datetime.now(timezone.utc).isoformat(),
-                'updated_at': datetime.now(timezone.utc).isoformat()
+                'processing_completed_at': datetime.now(timezone.utc).isoformat()
             }
             
             self.client.table('timeline_labels')\
