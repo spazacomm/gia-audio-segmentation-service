@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     # Required
     SOURCE_ID: str
-    DATE: str  # Format: YYYY-MM-DD
     
     # Supabase
     SUPABASE_URL: str
@@ -45,21 +44,12 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
     
-    @field_validator('SOURCE_ID', 'DATE', 'SUPABASE_URL', 'SUPABASE_KEY')
+    @field_validator('SOURCE_ID', 'SUPABASE_URL', 'SUPABASE_KEY')
     @classmethod
     def validate_required(cls, v: str, info) -> str:
         if not v or not v.strip():
             raise ValueError(f"{info.field_name} is required")
         return v.strip()
-    
-    @field_validator('DATE')
-    @classmethod
-    def validate_date_format(cls, v: str) -> str:
-        try:
-            datetime.strptime(v, '%Y-%m-%d')
-            return v
-        except ValueError:
-            raise ValueError("DATE must be in format YYYY-MM-DD")
 
 settings = Settings()
 
@@ -76,6 +66,7 @@ class ProcessingStats(BaseModel):
     total_files: int = 0
     completed: int = 0
     failed: int = 0
+    skipped: int = 0
     total_segments: int = 0
     failed_files: List[str] = []
     start_time: datetime
@@ -100,6 +91,19 @@ class SupabaseClient:
         except Exception as e:
             logger.error(f"Failed to fetch source {source_id}: {e}")
             return None
+    
+    def is_file_processed(self, recording_url: str) -> bool:
+        """Check if file has already been processed"""
+        try:
+            response = self.client.table('broadcast_timeline')\
+                .select('id')\
+                .eq('recording_url', recording_url)\
+                .eq('segmentation_processed', True)\
+                .execute()
+            return len(response.data) > 0
+        except Exception as e:
+            logger.error(f"Failed to check if file processed: {e}")
+            return False
     
     def create_broadcast(self, broadcast_data: Dict[str, Any]) -> Optional[str]:
         """Create broadcast_timeline record"""
@@ -153,7 +157,7 @@ class GCSClient:
         logger.info(f"GCS client initialized for bucket: {settings.BUCKET_NAME}")
     
     def list_audio_files(self, prefix: str) -> List[storage.Blob]:
-        """List all audio files in GCS path"""
+        """List all audio files in GCS path recursively"""
         blobs = self.storage_client.list_blobs(settings.BUCKET_NAME, prefix=prefix)
         audio_blobs = [
             blob for blob in blobs 
@@ -209,7 +213,7 @@ class AudioProcessor:
         return None
     
     def build_gcs_prefix(self, source: Dict[str, Any]) -> str:
-        """Build GCS path from source metadata"""
+        """Build GCS path from source metadata (without date for recursive scanning)"""
         country = source['countries']['name']
         platform = source['platforms']['name']
         station = source['name']
@@ -219,7 +223,7 @@ class AudioProcessor:
         platform = platform.lower().strip().replace(' ', '')
         station = station.lower().strip().replace(' ', '-')
         
-        return f"{country}/{platform}/{station}/{settings.DATE}/"
+        return f"{country}/{platform}/{station}/"
     
     async def segment_audio_file(self, file_path: str) -> List[SegmentData]:
         """Run segmentation on audio file (in thread pool)"""
@@ -236,24 +240,33 @@ class AudioProcessor:
         
         return await asyncio.to_thread(_segment)
     
-    async def process_single_file(self, blob: storage.Blob, source_id: str) -> bool:
-        """Process a single audio file"""
+    async def process_single_file(self, blob: storage.Blob, source_id: str) -> tuple[bool, bool]:
+        """
+        Process a single audio file
+        Returns: (success, was_skipped)
+        """
         filename = Path(blob.name).name
         tmp_path = None
+        recording_url = f"gs://{settings.BUCKET_NAME}/{blob.name}"
         
         try:
+            # Check if already processed
+            if self.db_client.is_file_processed(recording_url):
+                logger.debug(f"Skipping already processed: {filename}")
+                return True, True
+            
             # Parse datetime from filename
             broadcast_datetime = self.parse_datetime_from_filename(filename)
             if not broadcast_datetime:
                 logger.error(f"Could not parse datetime from filename: {filename}")
-                return False
+                return False, False
             
             # Create broadcast record
             broadcast_data = {
                 'broadcast_datetime': broadcast_datetime.isoformat(),
                 'source_id': source_id,
                 'status': 'processing',
-                'recording_url': f"gs://{settings.BUCKET_NAME}/{blob.name}",
+                'recording_url': recording_url,
                 'metadata': {
                     'filename': filename,
                     'gcs_path': blob.name
@@ -263,13 +276,13 @@ class AudioProcessor:
             broadcast_id = self.db_client.create_broadcast(broadcast_data)
             if not broadcast_id:
                 logger.error(f"Failed to create broadcast record for {filename}")
-                return False
+                return False, False
             
             # Download file
             tmp_path = await asyncio.to_thread(self.gcs_client.download_to_temp, blob)
             if not tmp_path:
                 self.db_client.update_broadcast_status(broadcast_id, 'failed')
-                return False
+                return False, False
             
             # Segment audio
             segments = await self.segment_audio_file(tmp_path)
@@ -277,7 +290,7 @@ class AudioProcessor:
             if not segments:
                 logger.warning(f"No segments found in {filename}")
                 self.db_client.update_broadcast_status(broadcast_id, 'completed', True)
-                return True
+                return True, False
             
             broadcast_dt = broadcast_datetime.replace(tzinfo=timezone.utc)
 
@@ -299,17 +312,17 @@ class AudioProcessor:
             # Insert segments
             if not self.db_client.insert_segments(segment_records):
                 self.db_client.update_broadcast_status(broadcast_id, 'failed')
-                return False
+                return False, False
             
             # Mark complete
             self.db_client.update_broadcast_status(broadcast_id, 'completed', True)
             
             logger.info(f"✓ Processed {filename}: {len(segments)} segments")
-            return True
+            return True, False
             
         except Exception as e:
             logger.error(f"Error processing {filename}: {e}", exc_info=True)
-            return False
+            return False, False
             
         finally:
             # Cleanup temp file
@@ -328,10 +341,9 @@ async def run_job():
     stats = ProcessingStats(start_time=datetime.now(timezone.utc))
     
     logger.info("=" * 60)
-    logger.info("Starting Audio Segmentation Job")
+    logger.info("Starting Recursive Audio Segmentation Job")
     logger.info("=" * 60)
     logger.info(f"Source ID: {settings.SOURCE_ID}")
-    logger.info(f"Date: {settings.DATE}")
     logger.info(f"Max Concurrent: {settings.MAX_CONCURRENT}")
     logger.info("")
     
@@ -347,12 +359,12 @@ async def run_job():
     
     logger.info(f"Source: {source['name']}")
     
-    # Build GCS prefix and list files
+    # Build GCS prefix and list files recursively
     gcs_prefix = processor.build_gcs_prefix(source)
-    logger.info(f"GCS Path: gs://{settings.BUCKET_NAME}/{gcs_prefix}")
+    logger.info(f"GCS Path (recursive): gs://{settings.BUCKET_NAME}/{gcs_prefix}")
     logger.info("")
     
-    logger.info("Listing audio files...")
+    logger.info("Listing audio files recursively...")
     audio_files = await asyncio.to_thread(processor.gcs_client.list_audio_files, gcs_prefix)
     
     if not audio_files:
@@ -367,10 +379,10 @@ async def run_job():
     # Process files with concurrency limit
     semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT)
     
-    async def process_with_limit(blob: storage.Blob) -> tuple[storage.Blob, bool]:
+    async def process_with_limit(blob: storage.Blob) -> tuple[storage.Blob, bool, bool]:
         async with semaphore:
-            success = await processor.process_single_file(blob, settings.SOURCE_ID)
-            return blob, success
+            success, skipped = await processor.process_single_file(blob, settings.SOURCE_ID)
+            return blob, success, skipped
     
     # Create all tasks
     tasks = [process_with_limit(blob) for blob in audio_files]
@@ -378,10 +390,12 @@ async def run_job():
     # Process with progress tracking
     completed_count = 0
     for coro in asyncio.as_completed(tasks):
-        blob, success = await coro
+        blob, success, skipped = await coro
         completed_count += 1
         
-        if success:
+        if skipped:
+            stats.skipped += 1
+        elif success:
             stats.completed += 1
         else:
             stats.failed += 1
@@ -390,7 +404,8 @@ async def run_job():
         # Progress indicator every 10% or every 50 files
         if completed_count % max(1, stats.total_files // 10) == 0 or completed_count % 50 == 0:
             progress_pct = (completed_count / stats.total_files) * 100
-            logger.info(f"Progress: {completed_count}/{stats.total_files} ({progress_pct:.1f}%)")
+            logger.info(f"Progress: {completed_count}/{stats.total_files} ({progress_pct:.1f}%) - "
+                       f"Completed: {stats.completed}, Skipped: {stats.skipped}, Failed: {stats.failed}")
     
     stats.end_time = datetime.now(timezone.utc)
     
@@ -409,8 +424,9 @@ def print_summary(stats: ProcessingStats):
     logger.info("=" * 60)
     logger.info("Job Completed")
     logger.info("=" * 60)
-    logger.info(f"Total Files: {stats.total_files}")
+    logger.info(f"Total Files Found: {stats.total_files}")
     logger.info(f"Successfully Processed: {stats.completed}")
+    logger.info(f"Skipped (Already Processed): {stats.skipped}")
     logger.info(f"Failed: {stats.failed}")
     logger.info(f"Duration: {duration_str}")
     logger.info("")
