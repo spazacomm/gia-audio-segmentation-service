@@ -38,7 +38,10 @@ class Settings(BaseSettings):
     BUCKET_NAME: str = "spaza-recordings"
     
     # Processing
-    MAX_CONCURRENT: int = 10
+    MAX_CONCURRENT: int = 3  # Lower for CPU-intensive segmentation
+    MAX_FILES_PER_RUN: int = 20  # Limit files per run to avoid timeout
+    MAX_FILE_SIZE_MB: int = 500  # Skip files larger than this
+    MAX_TIMEOUT_MINUTES: int = 8  # Leave buffer for 10min Cloud Run timeout
     SUPPORTED_EXTENSIONS: List[str] = [".mp3", ".wav", ".mp4"]
     
     class Config:
@@ -104,6 +107,19 @@ class SupabaseClient:
         except Exception as e:
             logger.error(f"Failed to check if file processed: {e}")
             return False
+    
+    def batch_check_processed(self, recording_urls: List[str]) -> set:
+        """Batch check which files are already processed"""
+        try:
+            response = self.client.table('broadcast_timeline')\
+                .select('recording_url')\
+                .in_('recording_url', recording_urls)\
+                .eq('segmentation_processed', True)\
+                .execute()
+            return {item['recording_url'] for item in response.data}
+        except Exception as e:
+            logger.error(f"Failed to batch check processed files: {e}")
+            return set()
     
     def create_broadcast(self, broadcast_data: Dict[str, Any]) -> Optional[str]:
         """Create broadcast_timeline record"""
@@ -250,9 +266,10 @@ class AudioProcessor:
         recording_url = f"gs://{settings.BUCKET_NAME}/{blob.name}"
         
         try:
-            # Check if already processed
-            if self.db_client.is_file_processed(recording_url):
-                logger.debug(f"Skipping already processed: {filename}")
+            # Skip files that are too large
+            file_size_mb = blob.size / 1024 / 1024
+            if file_size_mb > settings.MAX_FILE_SIZE_MB:
+                logger.warning(f"Skipping {filename}: file too large ({file_size_mb:.0f}MB)")
                 return True, True
             
             # Parse datetime from filename
@@ -371,6 +388,41 @@ async def run_job():
         logger.warning("No audio files found")
         return
     
+    logger.info(f"Found {len(audio_files)} audio files")
+    
+    # Batch check which files are already processed
+    logger.info("Checking which files are already processed...")
+    all_recording_urls = [f"gs://{settings.BUCKET_NAME}/{blob.name}" for blob in audio_files]
+    processed_urls = await asyncio.to_thread(
+        processor.db_client.batch_check_processed,
+        all_recording_urls
+    )
+    
+    # Filter out already-processed files
+    unprocessed_files = [
+        blob for blob in audio_files 
+        if f"gs://{settings.BUCKET_NAME}/{blob.name}" not in processed_urls
+    ]
+    
+    logger.info(f"Already processed: {len(processed_urls)}, Remaining: {len(unprocessed_files)}")
+    
+    if not unprocessed_files:
+        logger.info("All files already processed!")
+        return
+    
+    # Limit files per run to avoid timeout
+    if len(unprocessed_files) > settings.MAX_FILES_PER_RUN:
+        logger.info(f"Limiting to first {settings.MAX_FILES_PER_RUN} of {len(unprocessed_files)} unprocessed files")
+        unprocessed_files = unprocessed_files[:settings.MAX_FILES_PER_RUN]
+    
+    # Estimate time and further limit if needed
+    estimated_time_minutes = len(unprocessed_files) * 2  # ~2min per file average
+    if estimated_time_minutes > settings.MAX_TIMEOUT_MINUTES:
+        safe_limit = settings.MAX_TIMEOUT_MINUTES // 2
+        logger.warning(f"Estimated time {estimated_time_minutes}min exceeds timeout. Reducing to {safe_limit} files")
+        unprocessed_files = unprocessed_files[:safe_limit]
+    
+    audio_files = unprocessed_files
     stats.total_files = len(audio_files)
     logger.info(f"Found {stats.total_files} audio files")
     logger.info(f"Processing with {settings.MAX_CONCURRENT} concurrent workers...")
