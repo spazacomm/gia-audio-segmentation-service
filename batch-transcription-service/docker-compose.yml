@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  transcription-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whisper-transcription
+    environment:
+      # Required
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      
+      # Optional
+      - SOURCE_ID=${SOURCE_ID:-}
+      - BATCH_SIZE=${BATCH_SIZE:-50}
+      - MAX_CONCURRENT=${MAX_CONCURRENT:-2}
+      
+      # Whisper settings
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - WHISPER_LANGUAGE=${WHISPER_LANGUAGE:-en}
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
+      
+      # GCS
+      - BUCKET_NAME=${BUCKET_NAME:-spaza-recordings}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-credentials.json
+    
+    volumes:
+      # Mount GCP credentials
+      - ./gcp-credentials.json:/app/gcp-credentials.json:ro
+      
+      # Optional: Mount .env file
+      - ./.env:/app/.env:ro
+      
+      # Optional: Cache Whisper models
+      - whisper-models:/root/.cache/whisper
+    
+    restart: unless-stopped
+    
+    # Resource limits for CPU optimization
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+
+volumes:
+  whisper-models:
