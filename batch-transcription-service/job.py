@@ -260,7 +260,6 @@ class WhisperTranscriber:
             # Transcribe with optimized settings for CPU
             result = self.model.transcribe(
                 audio_path,
-                language=settings.WHISPER_LANGUAGE,
                 task="transcribe",
                 fp16=False,  # Disable FP16 for CPU
                 verbose=False,
@@ -288,7 +287,7 @@ class WhisperTranscriber:
             return {
                 'transcription': result['text'].strip(),
                 'confidence': avg_confidence,
-                'language': result.get('language', settings.WHISPER_LANGUAGE or 'unknown')
+                'language': result.get('language')
             }
             
         except Exception as e:
