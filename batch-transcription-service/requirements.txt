@@ -1,0 +1,22 @@
+# Core dependencies
+pydantic
+pydantic-settings
+
+# Database
+supabase
+
+# Google Cloud
+google-cloud-storage
+
+# Audio processing
+pydub
+ffmpeg-python
+
+# Whisper and ML
+openai-whisper
+torch
+torchaudio
+numpy
+
+# Async support
+asyncio

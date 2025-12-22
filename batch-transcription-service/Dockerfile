@@ -1,0 +1,29 @@
+# Dockerfile
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY transcription_service.py .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV WHISPER_MODEL=base
+ENV WHISPER_DEVICE=cpu
+ENV MAX_CONCURRENT=2
+
+# Run the service
+CMD ["python", "job.py"]
