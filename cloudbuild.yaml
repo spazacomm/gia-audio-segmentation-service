@@ -1,7 +1,7 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
   script: |
-    docker build -t us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-audio-segmentation-service/audio-segmentation-service:v1.8 .
+    docker build -t us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-audio-segmentation-service/audio-segmentation-service:v1.9 .
   automapSubstitutions: true
 images:
-- 'us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-audio-segmentation-service/audio-segmentation-service:v1.8'
+- 'us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-audio-segmentation-service/audio-segmentation-service:v1.9'

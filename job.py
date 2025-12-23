@@ -81,7 +81,7 @@ class SupabaseRepo:
             .table("broadcast_timeline")
             .select("id, segmentation_processed")
             .eq("source_id", source_id)
-            .eq("broadcast_datetime", broadcast_dt.isoformat())
+            .eq("broadcast_datetime", broadcast_dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
             .maybe_single()
             .execute()
         )
