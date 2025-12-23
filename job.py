@@ -174,16 +174,35 @@ class Processor:
 
     def parse_datetime(self, filename: str) -> Optional[datetime]:
         """
-        Expected patterns:
-          YYYYMMDD_HHMMSS
+        Supported patterns:
+          1) YYYYMMDD_HHMMSS        -> 20251217_195932
+          2) YYYY-MM-DD_HH-MM-SS    -> 2025-12-17_19-59-32
         """
-        m = re.search(r"(\d{8})_(\d{6})", filename)
-        if not m:
-            return None
-        return datetime.strptime(
-            "".join(m.groups()),
-            "%Y%m%d%H%M%S",
-        ).replace(tzinfo=timezone.utc)
+        patterns = [
+            # YYYYMMDD_HHMMSS
+            (
+                r"(\d{8})_(\d{6})",
+                "%Y%m%d%H%M%S",
+                lambda m: "".join(m.groups()),
+            ),
+            # YYYY-MM-DD_HH-MM-SS
+            (
+                r"(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})",
+                "%Y-%m-%d%H-%M-%S",
+                lambda m: m.group(1) + m.group(2),
+            ),
+        ]
+
+        for regex, fmt, builder in patterns:
+            m = re.search(regex, filename)
+            if not m:
+                continue
+            try:
+                dt = datetime.strptime(builder(m), fmt)
+                return dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+        return None
 
     async def process_blob(self, blob):
         filename = Path(blob.name).name
