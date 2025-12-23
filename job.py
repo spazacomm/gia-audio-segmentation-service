@@ -76,23 +76,21 @@ class SupabaseRepo:
     def create_or_get_broadcast(
         self,
         source_id: str,
-        broadcast_dt: datetime,
         recording_url: str,
+        broadcast_dt: Optional[datetime],
         filename: str,
     ) -> Tuple[int, bool]:
         """
         Returns:
           (broadcast_id, already_processed)
         """
-        broadcast_dt_str = to_rfc3339(broadcast_dt)
-
-        # Query for existing broadcast
+        # Query for existing broadcast using source_id + recording_url
         res = (
             self.client
             .table("broadcast_timeline")
             .select("id, segmentation_processed")
             .eq("source_id", source_id)
-            .eq("broadcast_datetime", broadcast_dt_str)
+            .eq("recording_url", recording_url)
             .maybe_single()
             .execute()
         )
@@ -106,7 +104,7 @@ class SupabaseRepo:
             .table("broadcast_timeline")
             .insert({
                 "source_id": source_id,
-                "broadcast_datetime": broadcast_dt_str,
+                "broadcast_datetime": to_rfc3339(broadcast_dt) if broadcast_dt else None,
                 "recording_url": recording_url,
                 "status": "processing",
                 "metadata": {"filename": filename},
@@ -193,13 +191,11 @@ class Processor:
           2) YYYY-MM-DD_HH-MM-SS    -> 2025-12-17_19-59-32
         """
         patterns = [
-            # YYYYMMDD_HHMMSS
             (
                 r"(\d{8})_(\d{6})",
                 "%Y%m%d%H%M%S",
                 lambda m: "".join(m.groups()),
             ),
-            # YYYY-MM-DD_HH-MM-SS
             (
                 r"(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})",
                 "%Y-%m-%d%H-%M-%S",
@@ -223,14 +219,11 @@ class Processor:
         recording_url = f"gs://{settings.BUCKET_NAME}/{blob.name}"
 
         broadcast_dt = self.parse_datetime(filename)
-        if not broadcast_dt:
-            logger.warning(f"skip=no_datetime file={filename}")
-            return
 
         broadcast_id, done = self.db.create_or_get_broadcast(
             settings.SOURCE_ID,
-            broadcast_dt,
             recording_url,
+            broadcast_dt,
             filename,
         )
 
@@ -252,8 +245,8 @@ class Processor:
             rows = [{
                 "timeline_id": broadcast_id,
                 "label": s.label,
-                "start_time": (broadcast_dt + timedelta(seconds=s.start)).isoformat(),
-                "end_time": (broadcast_dt + timedelta(seconds=s.end)).isoformat(),
+                "start_time": (broadcast_dt + timedelta(seconds=s.start)).isoformat() if broadcast_dt else None,
+                "end_time": (broadcast_dt + timedelta(seconds=s.end)).isoformat() if broadcast_dt else None,
                 "start_offset_seconds": s.start,
                 "end_offset_seconds": s.end,
                 "fingerprint_processed": False,
