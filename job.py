@@ -16,37 +16,32 @@ from google.cloud import storage
 from supabase import create_client, Client
 
 # ============================================================
-# LOGGING
-# ============================================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s level=%(levelname)s %(message)s",
-    stream=sys.stdout,
-)
-logger = logging.getLogger(__name__)
-
-# ============================================================
-# SETTINGS
+# SETTINGS & LOGGING
 # ============================================================
 
 class Settings(BaseSettings):
     SOURCE_ID: str
     GCS_PREFIX: str
     BUCKET_NAME: str
-
     SUPABASE_URL: str
     SUPABASE_KEY: str
-
     MAX_SEGMENT_WORKERS: int = 2
+    # Limit parallel processing to avoid OOM/CPU thrashing
+    MAX_CONCURRENT_TASKS: int = 2 
     FILE_TIMEOUT_SECONDS: int = 8 * 60
-
     SUPPORTED_EXTENSIONS: List[str] = [".mp3", ".wav", ".mp4"]
 
 settings = Settings()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    stream=sys.stdout,
+)
+logger = logging.getLogger(__name__)
+
 # ============================================================
-# MODELS
+# MODELS & REPOS
 # ============================================================
 
 class Segment(BaseModel):
@@ -54,252 +49,127 @@ class Segment(BaseModel):
     start: float
     end: float
 
-# ============================================================
-# UTILS
-# ============================================================
-
-def to_rfc3339(dt: datetime) -> str:
-    """Normalize datetime for Supabase/PostgREST: UTC, no microseconds, 'Z' suffix"""
-    return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-# ============================================================
-# SUPABASE REPOSITORY
-# ============================================================
-
 class SupabaseRepo:
     def __init__(self):
-        self.client: Client = create_client(
-            settings.SUPABASE_URL,
-            settings.SUPABASE_KEY,
-        )
+        self.client: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
-    def create_or_get_broadcast(
-        self,
-        source_id: str,
-        recording_url: str,
-        broadcast_dt: Optional[datetime],
-        filename: str,
-    ) -> Tuple[int, bool]:
-        """
-        Returns:
-          (broadcast_id, already_processed)
-        """
-        # Query for existing broadcast using source_id + recording_url
-        res = (
-            self.client
-            .table("broadcast_timeline")
-            .select("id, segmentation_processed")
-            .eq("source_id", source_id)
-            .eq("recording_url", recording_url)
-            .maybe_single()
-            .execute()
-        )
+    def upsert_broadcast(self, source_id: str, recording_url: str, broadcast_dt: Optional[datetime], filename: str) -> Tuple[int, bool]:
+        """Atomic operation to get or create a broadcast record."""
+        payload = {
+            "source_id": source_id,
+            "recording_url": recording_url,
+            "broadcast_datetime": broadcast_dt.isoformat() if broadcast_dt else None,
+            "status": "processing",
+            "metadata": {"filename": filename},
+        }
+        
+        # .upsert handles the "already exists" logic via the unique constraint
+        # on_conflict specifies the columns that define a 'duplicate'
+        res = self.client.table("broadcast_timeline").upsert(
+            payload, on_conflict="source_id, recording_url"
+        ).execute()
 
-        if res.data:
-            return int(res.data["id"]), bool(res.data["segmentation_processed"])
+        if not res.data:
+            raise RuntimeError(f"Upsert failed for {recording_url}")
+            
+        row = res.data[0]
+        return int(row["id"]), bool(row.get("segmentation_processed", False))
 
-        # Insert new broadcast
-        insert = (
-            self.client
-            .table("broadcast_timeline")
-            .insert({
-                "source_id": source_id,
-                "broadcast_datetime": to_rfc3339(broadcast_dt) if broadcast_dt else None,
-                "recording_url": recording_url,
-                "status": "processing",
-                "metadata": {"filename": filename},
-            })
-            .execute()
-        )
+    def mark_status(self, broadcast_id: int, status: str, processed: bool = False):
+        now = datetime.now(timezone.utc).isoformat()
+        update_data = {"status": status, "updated_at": now}
+        if processed:
+            update_data.update({"segmentation_processed": True, "processed_at": now})
+        
+        self.client.table("broadcast_timeline").update(update_data).eq("id", broadcast_id).execute()
 
-        return int(insert.data[0]["id"]), False
-
-    def mark_completed(self, broadcast_id: int):
-        now_str = to_rfc3339(datetime.now(timezone.utc))
-        self.client.table("broadcast_timeline").update({
-            "status": "completed",
-            "segmentation_processed": True,
-            "processed_at": now_str,
-            "updated_at": now_str,
-        }).eq("id", broadcast_id).execute()
-
-    def mark_failed(self, broadcast_id: int):
-        now_str = to_rfc3339(datetime.now(timezone.utc))
-        self.client.table("broadcast_timeline").update({
-            "status": "failed",
-            "updated_at": now_str,
-        }).eq("id", broadcast_id).execute()
-
-    def insert_segments_chunked(
-        self,
-        rows: List[Dict[str, Any]],
-        chunk_size: int = 500,
-    ):
-        for i in range(0, len(rows), chunk_size):
-            self.client.table("timeline_labels").insert(
-                rows[i:i + chunk_size]
-            ).execute()
+    def insert_segments_chunked(self, rows: List[Dict[str, Any]]):
+        for i in range(0, len(rows), 500):
+            self.client.table("timeline_labels").insert(rows[i:i + 500]).execute()
 
 # ============================================================
-# GCS
-# ============================================================
-
-class GCSRepo:
-    def __init__(self):
-        self.client = storage.Client()
-
-    def list_audio(self, bucket: str, prefix: str):
-        blobs = self.client.list_blobs(bucket, prefix=prefix)
-        return [
-            b for b in blobs
-            if any(b.name.lower().endswith(ext) for ext in settings.SUPPORTED_EXTENSIONS)
-        ]
-
-    def download(self, blob) -> str:
-        fd, path = tempfile.mkstemp(suffix=Path(blob.name).suffix)
-        os.close(fd)
-        blob.download_to_filename(path)
-        return path
-
-# ============================================================
-# SEGMENTATION (PROCESS SAFE)
+# LOGIC & PROCESSING
 # ============================================================
 
 def segment_file(path: str) -> List[Segment]:
-    segmenter = Segmenter()
-    return [
-        Segment(label=s[0], start=float(s[1]), end=float(s[2]))
-        for s in segmenter(path)
-    ]
-
-# ============================================================
-# PROCESSOR
-# ============================================================
+    """Runs in ProcessPoolExecutor to avoid blocking the event loop."""
+    segmenter = Segmenter() # Initialize inside worker to avoid pickle issues
+    return [Segment(label=s[0], start=float(s[1]), end=float(s[2])) for s in segmenter(path)]
 
 class Processor:
     def __init__(self):
         self.db = SupabaseRepo()
-        self.gcs = GCSRepo()
-        self.pool = ProcessPoolExecutor(
-            max_workers=settings.MAX_SEGMENT_WORKERS
-        )
+        self.storage = storage.Client()
+        self.pool = ProcessPoolExecutor(max_workers=settings.MAX_SEGMENT_WORKERS)
+        self.semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_TASKS)
 
     def parse_datetime(self, filename: str) -> Optional[datetime]:
-        """
-        Supported patterns:
-          1) YYYYMMDD_HHMMSS        -> 20251217_195932
-          2) YYYY-MM-DD_HH-MM-SS    -> 2025-12-17_19-59-32
-        """
-        patterns = [
-            (
-                r"(\d{8})_(\d{6})",
-                "%Y%m%d%H%M%S",
-                lambda m: "".join(m.groups()),
-            ),
-            (
-                r"(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})",
-                "%Y-%m-%d%H-%M-%S",
-                lambda m: m.group(1) + m.group(2),
-            ),
-        ]
-
-        for regex, fmt, builder in patterns:
+        # Optimized regex matching
+        patterns = [(r"(\d{8})_(\d{6})", "%Y%m%d%H%M%S"), 
+                    (r"(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})", "%Y-%m-%d%H-%M-%S")]
+        for regex, fmt in patterns:
             m = re.search(regex, filename)
-            if not m:
-                continue
-            try:
-                dt = datetime.strptime(builder(m), fmt)
-                return dt.replace(tzinfo=timezone.utc)
-            except ValueError:
-                continue
+            if m:
+                try:
+                    ts_str = "".join(m.groups()).replace("-", "") if "-" in m.group(1) else "".join(m.groups())
+                    return datetime.strptime(ts_str, "%Y%m%d%H%M%S" if "_" in regex else "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+                except: continue
         return None
 
     async def process_blob(self, blob):
-        filename = Path(blob.name).name
-        recording_url = f"gs://{settings.BUCKET_NAME}/{blob.name}"
+        async with self.semaphore: # Limit active workers
+            filename = Path(blob.name).name
+            recording_url = f"gs://{settings.BUCKET_NAME}/{blob.name}"
+            broadcast_dt = self.parse_datetime(filename)
 
-        broadcast_dt = self.parse_datetime(filename)
+            try:
+                broadcast_id, done = self.db.upsert_broadcast(settings.SOURCE_ID, recording_url, broadcast_dt, filename)
+                if done:
+                    logger.info(f"SKIP: {filename} already processed.")
+                    return
 
-        broadcast_id, done = self.db.create_or_get_broadcast(
-            settings.SOURCE_ID,
-            recording_url,
-            broadcast_dt,
-            filename,
-        )
+                # Download and Segment
+                with tempfile.NamedTemporaryFile(suffix=Path(blob.name).suffix, delete=True) as tmp:
+                    blob.download_to_filename(tmp.name)
+                    
+                    segments = await asyncio.wait_for(
+                        asyncio.get_running_loop().run_in_executor(self.pool, segment_file, tmp.name),
+                        timeout=settings.FILE_TIMEOUT_SECONDS
+                    )
 
-        if done:
-            logger.info(f"skip=already_processed file={filename}")
-            return
+                # Prepare Rows
+                rows = [{
+                    "timeline_id": broadcast_id,
+                    "label": s.label,
+                    "start_time": (broadcast_dt + timedelta(seconds=s.start)).isoformat() if broadcast_dt else None,
+                    "end_time": (broadcast_dt + timedelta(seconds=s.end)).isoformat() if broadcast_dt else None,
+                    "start_offset_seconds": s.start,
+                    "end_offset_seconds": s.end,
+                } for s in segments]
 
-        tmp = None
-        try:
-            tmp = self.gcs.download(blob)
+                if rows:
+                    self.db.insert_segments_chunked(rows)
+                
+                self.db.mark_status(broadcast_id, "completed", processed=True)
+                logger.info(f"SUCCESS: {filename} (ID: {broadcast_id})")
 
-            segments = await asyncio.wait_for(
-                asyncio.get_running_loop().run_in_executor(
-                    self.pool, segment_file, tmp
-                ),
-                timeout=settings.FILE_TIMEOUT_SECONDS,
-            )
-
-            rows = [{
-                "timeline_id": broadcast_id,
-                "label": s.label,
-                "start_time": (broadcast_dt + timedelta(seconds=s.start)).isoformat() if broadcast_dt else None,
-                "end_time": (broadcast_dt + timedelta(seconds=s.end)).isoformat() if broadcast_dt else None,
-                "start_offset_seconds": s.start,
-                "end_offset_seconds": s.end,
-                "fingerprint_processed": False,
-                "transcription_processed": False,
-            } for s in segments]
-
-            if rows:
-                self.db.insert_segments_chunked(rows)
-
-            self.db.mark_completed(broadcast_id)
-
-            logger.info(
-                f"status=completed file={filename} "
-                f"segments={len(rows)} broadcast_id={broadcast_id}"
-            )
-
-        except Exception as e:
-            logger.error(
-                f"status=failed file={filename} "
-                f"broadcast_id={broadcast_id} error={e}",
-                exc_info=True,
-            )
-            self.db.mark_failed(broadcast_id)
-
-        finally:
-            if tmp and os.path.exists(tmp):
-                os.unlink(tmp)
+            except Exception as e:
+                logger.error(f"FAILED: {filename} | Error: {str(e)}")
+                # We don't have broadcast_id if upsert fails
+                if 'broadcast_id' in locals():
+                    self.db.mark_status(broadcast_id, "failed")
 
 # ============================================================
-# ENTRYPOINT (Cloud Run Job)
+# ENTRYPOINT
 # ============================================================
 
 async def main():
     processor = Processor()
+    blobs = [b for b in processor.storage.list_blobs(settings.BUCKET_NAME, prefix=settings.GCS_PREFIX)
+             if any(b.name.lower().endswith(ext) for ext in settings.SUPPORTED_EXTENSIONS)]
 
-    blobs = processor.gcs.list_audio(
-        settings.BUCKET_NAME,
-        settings.GCS_PREFIX,
-    )
-
-    logger.info(
-        f"job_start source={settings.SOURCE_ID} "
-        f"files_found={len(blobs)}"
-    )
-
-    await asyncio.gather(
-        *(processor.process_blob(blob) for blob in blobs)
-    )
-
-    logger.info(
-        f"job_complete source={settings.SOURCE_ID} "
-        f"files_total={len(blobs)}"
-    )
+    logger.info(f"Starting Job: {len(blobs)} files found.")
+    await asyncio.gather(*(processor.process_blob(b) for b in blobs))
 
 if __name__ == "__main__":
     asyncio.run(main())
