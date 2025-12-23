@@ -55,6 +55,14 @@ class Segment(BaseModel):
     end: float
 
 # ============================================================
+# UTILS
+# ============================================================
+
+def to_rfc3339(dt: datetime) -> str:
+    """Normalize datetime for Supabase/PostgREST: UTC, no microseconds, 'Z' suffix"""
+    return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+# ============================================================
 # SUPABASE REPOSITORY
 # ============================================================
 
@@ -76,12 +84,15 @@ class SupabaseRepo:
         Returns:
           (broadcast_id, already_processed)
         """
+        broadcast_dt_str = to_rfc3339(broadcast_dt)
+
+        # Query for existing broadcast
         res = (
             self.client
             .table("broadcast_timeline")
             .select("id, segmentation_processed")
             .eq("source_id", source_id)
-            .eq("broadcast_datetime", broadcast_dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+            .eq("broadcast_datetime", broadcast_dt_str)
             .maybe_single()
             .execute()
         )
@@ -89,12 +100,13 @@ class SupabaseRepo:
         if res.data:
             return int(res.data["id"]), bool(res.data["segmentation_processed"])
 
+        # Insert new broadcast
         insert = (
             self.client
             .table("broadcast_timeline")
             .insert({
                 "source_id": source_id,
-                "broadcast_datetime": broadcast_dt.isoformat(),
+                "broadcast_datetime": broadcast_dt_str,
                 "recording_url": recording_url,
                 "status": "processing",
                 "metadata": {"filename": filename},
@@ -105,17 +117,19 @@ class SupabaseRepo:
         return int(insert.data[0]["id"]), False
 
     def mark_completed(self, broadcast_id: int):
+        now_str = to_rfc3339(datetime.now(timezone.utc))
         self.client.table("broadcast_timeline").update({
             "status": "completed",
             "segmentation_processed": True,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "processed_at": now_str,
+            "updated_at": now_str,
         }).eq("id", broadcast_id).execute()
 
     def mark_failed(self, broadcast_id: int):
+        now_str = to_rfc3339(datetime.now(timezone.utc))
         self.client.table("broadcast_timeline").update({
             "status": "failed",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": now_str,
         }).eq("id", broadcast_id).execute()
 
     def insert_segments_chunked(
