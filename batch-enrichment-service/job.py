@@ -12,7 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 # --- Configuration ---
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") # Service role bypasses RLS for backend
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") # Service role bypasses RLS for backend
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 MODEL_ID = os.getenv("MODEL_ID", "gemini-1.5-flash-002")
