@@ -91,12 +91,14 @@ class BatchAssembler:
         t_start = self._parse(segments[0]["start_time"])
         t_end = self._parse(segments[-1]["end_time"])
 
-        id_source = f"{segments[0]['source_id']}|{segments[0]['start_time']}|{segments[0]['id']}"
+        # Use attached source_id from labels
+        source_id = segments[0]["source_id"]
+        id_source = f"{source_id}|{segments[0]['start_time']}|{segments[0]['id']}"
         event_id = hashlib.sha1(id_source.encode()).hexdigest()
 
         return {
             "id": event_id,
-            "source_id": segments[0]["source_id"],
+            "source_id": source_id,
             "start_time": segments[0]["start_time"],
             "end_time": segments[-1]["end_time"],
             "duration": (t_end - t_start).total_seconds(),
@@ -198,7 +200,11 @@ Return STRICT JSON:
                     "order": "start_time.asc"
                 }
             )
-            labels.extend(resp.json())
+            labels_chunk = resp.json()
+            # Attach source_id from chunk
+            for lbl in labels_chunk:
+                lbl["source_id"] = chunk["source_id"]
+            labels.extend(labels_chunk)
 
         if not labels:
             logging.warning("No labels found")
