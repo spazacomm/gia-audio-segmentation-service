@@ -28,6 +28,15 @@ class Config:
         ad_list = os.getenv("AD_DURATIONS", "15,30,45,60")
         self.ad_durations: Set[int] = {int(d.strip()) for d in ad_list.split(",")}
 
+        # Label categories
+        self.label_categories = {
+            "speech": {"male", "female"},
+            "music": {"music"},
+            "noise": {"noise", "noEnergy"}
+        }
+        self.known_labels = set().union(*self.label_categories.values())
+
+
 # ============================================================
 # 2. Batch Assembler
 # ============================================================
@@ -38,11 +47,25 @@ class BatchAssembler:
     def __init__(self, config: Config):
         self.config = config
 
+    def label_category(self, label: str) -> str:
+        for category, labels in self.config.label_categories.items():
+            if label in labels:
+                return category
+        return "unknown"
+
     def assemble_events(self, labels: List[Dict]) -> List[Dict]:
         events = []
         buffer = []
 
         for i, curr in enumerate(labels):
+            # Skip if timestamps missing
+            if not curr.get("start_time") or not curr.get("end_time"):
+                logging.warning(f"Skipping label with missing timestamps: {curr}")
+                continue
+
+            # Default source_id if missing
+            curr.setdefault("source_id", "unknown_source")
+
             if not buffer:
                 buffer.append(curr)
                 continue
@@ -56,27 +79,49 @@ class BatchAssembler:
             t_start = self._parse(buffer[0]["start_time"])
             current_duration = (t_prev - t_start).total_seconds()
 
-            should_merge = False
+            merge = False
 
+            cat_prev = self.label_category(prev["label"])
+            cat_curr = self.label_category(curr["label"])
+
+            # -------------------------
             # Rule 1: Speech continuity
-            if curr["label"] in ("male", "female") and prev["label"] in ("male", "female"):
+            # -------------------------
+            if cat_prev == "speech" and cat_curr == "speech":
                 if gap < self.config.pause_threshold:
-                    should_merge = True
+                    merge = True
 
-            # Rule 2: Short music bridge
-            elif curr["label"] == "music" and float(curr.get("duration_seconds", 0)) < self.config.jingle_threshold:
-                if i + 1 < len(labels) and labels[i + 1]["label"] in ("male", "female"):
-                    should_merge = True
+            # -------------------------
+            # Rule 2: Short music jingle
+            # -------------------------
+            elif cat_curr == "music" and float(curr.get("duration_seconds", 0)) < self.config.jingle_threshold:
+                if i + 1 < len(labels):
+                    next_cat = self.label_category(labels[i + 1]["label"])
+                    if next_cat == "speech":
+                        merge = True
 
-            # Enforce ad boundaries
+            # -------------------------
+            # Rule 3: Noise / noEnergy
+            # -------------------------
+            elif cat_curr in ("noise", "unknown"):
+                if gap < self.config.pause_threshold:
+                    merge = True
+                else:
+                    merge = False
+
+            # -------------------------
+            # Rule 4: Enforce ad boundaries
+            # -------------------------
             if any(abs(current_duration - d) < 1.0 for d in self.config.ad_durations):
-                should_merge = False
+                merge = False
 
-            # Long music = song
-            if curr["label"] == "music" and float(curr.get("duration_seconds", 0)) > self.config.song_threshold:
-                should_merge = False
+            # -------------------------
+            # Rule 5: Long music = song
+            # -------------------------
+            if cat_curr == "music" and float(curr.get("duration_seconds", 0)) > self.config.song_threshold:
+                merge = False
 
-            if should_merge:
+            if merge:
                 buffer.append(curr)
             else:
                 events.append(self._package_event(buffer))
@@ -91,10 +136,12 @@ class BatchAssembler:
         t_start = self._parse(segments[0]["start_time"])
         t_end = self._parse(segments[-1]["end_time"])
 
-        # Use attached source_id from labels
         source_id = segments[0]["source_id"]
         id_source = f"{source_id}|{segments[0]['start_time']}|{segments[0]['id']}"
         event_id = hashlib.sha1(id_source.encode()).hexdigest()
+
+        # Merge acoustic profile including unknown labels
+        acoustic_profile = sorted({s["label"] for s in segments if s.get("label")})
 
         return {
             "id": event_id,
@@ -105,14 +152,15 @@ class BatchAssembler:
             "transcript": " ".join(
                 s.get("transcript", "") for s in segments if s.get("transcript")
             ).strip() or None,
-            "acoustic_profile": sorted({s["label"] for s in segments}),
-            "timeline_label_ids": [s["id"] for s in segments],
+            "acoustic_profile": acoustic_profile,
+            "timeline_label_ids": [str(s["id"]) for s in segments],
             "boundary_reason": "heuristic_cut"
         }
 
     @staticmethod
     def _parse(ts: str) -> datetime:
         return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
 
 # ============================================================
 # 3. Broadcast Batch Job
@@ -141,12 +189,15 @@ class BroadcastBatchJob:
 
     @retry(wait=wait_random_exponential(min=1, max=10), stop=stop_after_attempt(3))
     def enrich_with_ai(self, event: Dict) -> Dict:
+        """Use AI to enrich the event with topics, entities, and classification."""
         if not event["transcript"]:
             return {
                 "event_type": "music" if "music" in event["acoustic_profile"] else "noise",
                 "event_name": None,
                 "is_commercial": False,
-                "summary": None
+                "summary": None,
+                "topics": [],
+                "entities": []
             }
 
         prompt = f"""
@@ -159,7 +210,9 @@ Return STRICT JSON:
   "event_type": "ad|show|news|music",
   "event_name": string|null,
   "is_commercial": boolean,
-  "summary": string|null
+  "summary": string|null,
+  "topics": [string],
+  "entities": [string]
 }}
 """
 
@@ -201,9 +254,8 @@ Return STRICT JSON:
                 }
             )
             labels_chunk = resp.json()
-            # Attach source_id from chunk
             for lbl in labels_chunk:
-                lbl["source_id"] = chunk["source_id"]
+                lbl["source_id"] = chunk.get("source_id", "unknown_source")
             labels.extend(labels_chunk)
 
         if not labels:
@@ -232,6 +284,8 @@ Return STRICT JSON:
                     "timeline_label_ids": event["timeline_label_ids"],
                     "metadata": {
                         "summary": enrichment.get("summary"),
+                        "topics": enrichment.get("topics", []),
+                        "entities": enrichment.get("entities", []),
                         "model": "gemini-1.5-flash-002",
                         "enriched_at": datetime.utcnow().isoformat()
                     }
@@ -243,6 +297,7 @@ Return STRICT JSON:
                 logging.error(f"Failed to persist event {event['id']}: {e}")
 
         logging.info(f"Completed: {len(events)} broadcast events processed")
+
 
 # ============================================================
 # 4. Entry Point

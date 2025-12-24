@@ -1,7 +1,7 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
   script: |
-    docker build -t us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-enrichment-service/batch-enrichment-service:v1.2 .
+    docker build -t us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-enrichment-service/batch-enrichment-service:v1.3 .
   automapSubstitutions: true
 images:
-- 'us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-enrichment-service/batch-enrichment-service:v1.2'
+- 'us-west2-docker.pkg.dev/$PROJECT_ID/gia-v2-batch-enrichment-service/batch-enrichment-service:v1.3'
