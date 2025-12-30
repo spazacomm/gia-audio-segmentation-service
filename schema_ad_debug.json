@@ -1,0 +1,3050 @@
+{
+  "clustering": {
+    "fields": [
+      "source_type",
+      "country_code",
+      "classification",
+      "classification_type"
+    ]
+  },
+  "creationTime": "1766932159311",
+  "description": "Unified media monitoring analytics table for spaza-media-monitor",
+  "etag": "2i+EejcYO5a0ecpodDgFZQ==",
+  "id": "spaza-media-monitor:media_monitoring.media_items",
+  "kind": "bigquery#table",
+  "lastModifiedTime": "1766932159311",
+  "location": "US",
+  "numActiveLogicalBytes": "0",
+  "numActivePhysicalBytes": "0",
+  "numBytes": "0",
+  "numCurrentPhysicalBytes": "0",
+  "numLongTermBytes": "0",
+  "numLongTermLogicalBytes": "0",
+  "numLongTermPhysicalBytes": "0",
+  "numRows": "0",
+  "numTimeTravelPhysicalBytes": "0",
+  "numTotalLogicalBytes": "0",
+  "numTotalPhysicalBytes": "0",
+  "partitionDefinition": {
+    "partitionedColumn": [
+      {
+        "field": "published_at"
+      }
+    ]
+  },
+  "requirePartitionFilter": true,
+  "schema": {
+    "fields": [
+      {
+        "description": "Primary unique identifier, UUID format",
+        "mode": "REQUIRED",
+        "name": "item_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Original identifier from source system: Tweet ID, YouTube Video ID, Nielsen Broadcast ID, etc.",
+        "name": "external_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Primary classification: ADVERTISING, CONTENT, SOCIAL, MUSIC, BROADCAST, PRINT, OOH, PODCAST",
+        "mode": "REQUIRED",
+        "name": "classification",
+        "type": "STRING"
+      },
+      {
+        "description": "Detailed classification: AD, MENTION, TOPIC, MUSIC, ARTICLE, TWEET, POST, PRINT, OOH, PODCAST, BROADCAST",
+        "mode": "REQUIRED",
+        "name": "classification_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Technical format: TEXT, AUDIO, VIDEO, IMAGE, MULTIMIXED",
+        "mode": "REQUIRED",
+        "name": "content_format",
+        "type": "STRING"
+      },
+      {
+        "description": "Secondary classification for specialized filtering: TV_COMMERCIAL, RADIO_SPOT, NATIVE_AD, INFLUENCER_POST, etc.",
+        "name": "sub_classification",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the source publication, channel, or account",
+        "name": "source_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the source: CNN, The New York Times, @Nike, BBC Radio 1, etc.",
+        "mode": "REQUIRED",
+        "name": "source_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Type of source: NEWS_SITE, BLOG, SOCIAL_PLATFORM, TV_CHANNEL, RADIO_STATION, PODCAST, PRINT_PUBLICATION, OOH_LOCATION, YOUTUBE, WEBSITE",
+        "mode": "REQUIRED",
+        "name": "source_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Specific channel, section, or program: Business Section, Morning Show, Tech Category, etc.",
+        "name": "source_channel",
+        "type": "STRING"
+      },
+      {
+        "description": "URL or locator for the original content",
+        "name": "source_url",
+        "type": "STRING"
+      },
+      {
+        "description": "Technical ingestion method: RSS, API, SCRAPED, STREAM_CAPTURE, BROADCAST_FEED, MANUAL",
+        "name": "source_format",
+        "type": "STRING"
+      },
+      {
+        "description": "ISO 3166-1 alpha-2 country code: US, GB, DE, JP, FR, CA, AU, etc.",
+        "mode": "REQUIRED",
+        "name": "country_code",
+        "type": "STRING"
+      },
+      {
+        "description": "Human-readable country name",
+        "name": "country_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Sub-national region: California, Ontario, Bavaria, etc.",
+        "name": "region",
+        "type": "STRING"
+      },
+      {
+        "description": "Media market identifier: DMA code for US TV markets (e.g., 501 for New York)",
+        "name": "market_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Human-readable market name: New York Metro, Los Angeles, London",
+        "name": "market_name",
+        "type": "STRING"
+      },
+      {
+        "description": "ISO 639-1 language code: en, fr, de, ja, zh, es, pt, etc.",
+        "name": "language_code",
+        "type": "STRING"
+      },
+      {
+        "description": "Full locale for regional variations: en-US, fr-CA, zh-Hans, pt-BR",
+        "name": "locale",
+        "type": "STRING"
+      },
+      {
+        "description": "Original publication/air/broadcast date and time of the content (primary temporal dimension)",
+        "mode": "REQUIRED",
+        "name": "published_at",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Date and time when the monitoring system captured the content",
+        "mode": "REQUIRED",
+        "name": "collected_at",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Date and time when content finished NLP processing",
+        "name": "processed_at",
+        "type": "TIMESTAMP"
+      },
+      {
+        "defaultValueExpression": "CURRENT_TIMESTAMP()",
+        "description": "Date and time when the record was inserted into the data warehouse (audit trail)",
+        "name": "ingested_at",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Effective start date for slowly changing dimensions",
+        "name": "valid_from",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Effective end date for slowly changing dimensions",
+        "name": "valid_to",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Title, headline, or name of the content",
+        "name": "title",
+        "type": "STRING"
+      },
+      {
+        "description": "Full text content, transcript, or description (supports full-text search)",
+        "name": "content_text",
+        "type": "STRING"
+      },
+      {
+        "description": "Brief excerpt or preview of content (250-500 characters) for display purposes",
+        "name": "content_snippet",
+        "type": "STRING"
+      },
+      {
+        "description": "Author, creator, or content producer name",
+        "name": "author",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the author/creator when available from source system",
+        "name": "author_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Tags or keywords associated with the content: technology, politics, sustainability",
+        "mode": "REPEATED",
+        "name": "tags",
+        "type": "STRING"
+      },
+      {
+        "description": "Editorial categories or sections: Business, Technology, Entertainment, Sports",
+        "mode": "REPEATED",
+        "name": "categories",
+        "type": "STRING"
+      },
+      {
+        "description": "Estimated potential audience reach: circulation, viewership, follower count",
+        "name": "reach_estimate",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Actual measured impressions from source platforms where available",
+        "name": "impressions_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Total engagement: sum of likes, shares, comments, and other interaction types",
+        "name": "engagement_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Calculated engagement rate as decimal (0.0-1.0): engagement/impressions or engagement/reach",
+        "name": "engagement_rate",
+        "type": "FLOAT"
+      },
+      {
+        "description": "Number of shares, retweets, reposts, or forwards",
+        "name": "share_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Number of comments, replies, or discussion contributions",
+        "name": "comment_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Number of likes, favorites, or favorable reactions",
+        "name": "like_count",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Sentiment score from -1.0 (most negative) to 1.0 (most positive), 0 = neutral",
+        "name": "sentiment_score",
+        "type": "FLOAT"
+      },
+      {
+        "description": "Strength of sentiment regardless of polarity (0.0+): distinguishes strong from weak opinions",
+        "name": "sentiment_magnitude",
+        "type": "FLOAT"
+      },
+      {
+        "description": "Sentiment classification: POSITIVE, NEGATIVE, NEUTRAL, MIXED, UNKNOWN",
+        "name": "sentiment_label",
+        "type": "STRING"
+      },
+      {
+        "description": "Model confidence in sentiment classification (0.0-1.0)",
+        "name": "sentiment_confidence",
+        "type": "FLOAT"
+      },
+      {
+        "description": "Detailed emotion scores from advanced NLP analysis: each 0.0-1.0",
+        "fields": [
+          {
+            "name": "joy",
+            "type": "FLOAT"
+          },
+          {
+            "name": "sadness",
+            "type": "FLOAT"
+          },
+          {
+            "name": "anger",
+            "type": "FLOAT"
+          },
+          {
+            "name": "fear",
+            "type": "FLOAT"
+          },
+          {
+            "name": "surprise",
+            "type": "FLOAT"
+          },
+          {
+            "name": "disgust",
+            "type": "FLOAT"
+          },
+          {
+            "name": "trust",
+            "type": "FLOAT"
+          },
+          {
+            "name": "anticipation",
+            "type": "FLOAT"
+          }
+        ],
+        "name": "emotion_scores",
+        "type": "RECORD"
+      },
+      {
+        "description": "Named entities detected in content: organization, person, product, location, etc.",
+        "fields": [
+          {
+            "name": "entity_id",
+            "type": "STRING"
+          },
+          {
+            "name": "entity_name",
+            "type": "STRING"
+          },
+          {
+            "name": "entity_type",
+            "type": "STRING"
+          },
+          {
+            "name": "sentiment_score",
+            "type": "FLOAT"
+          },
+          {
+            "name": "salience",
+            "type": "FLOAT"
+          },
+          {
+            "name": "mentions_count",
+            "type": "INTEGER"
+          },
+          {
+            "name": "context",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "detected_entities",
+        "type": "RECORD"
+      },
+      {
+        "description": "Flag indicating if content is advertising: TRUE/FALSE",
+        "name": "is_ad",
+        "type": "BOOLEAN"
+      },
+      {
+        "description": "Detection method: FINGERPRINT, ML_CLASSIFIER, METADATA, MANUAL",
+        "name": "ad_detected_by",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the advertiser organization",
+        "name": "advertiser_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the advertiser organization",
+        "name": "advertiser_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the advertised brand",
+        "name": "brand_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the advertised brand",
+        "name": "brand_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the advertising campaign",
+        "name": "campaign_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the advertising campaign",
+        "name": "campaign_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Type: TV_COMMERCIAL, RADIO_SPOT, PRINT_AD, OOH_DISPLAY, DIGITAL_DISPLAY, etc.",
+        "name": "ad_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the specific creative execution",
+        "name": "creative_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Version identifier for the creative: v1, v2, final",
+        "name": "creative_version",
+        "type": "STRING"
+      },
+      {
+        "description": "Duration of advertisement in seconds",
+        "name": "ad_duration_seconds",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Position in content: PRE_ROLL, MID_ROLL, POST_ROLL, FIXED, INTEGRATED, etc.",
+        "name": "ad_position",
+        "type": "STRING"
+      },
+      {
+        "description": "Flag indicating if content contains music: TRUE/FALSE",
+        "name": "is_music",
+        "type": "BOOLEAN"
+      },
+      {
+        "description": "Internal unique identifier for the track recording",
+        "name": "music_track_id",
+        "type": "STRING"
+      },
+      {
+        "description": "International Standard Recording Code: US-XXX-YY-NNNNN format",
+        "name": "isrc_code",
+        "type": "STRING"
+      },
+      {
+        "description": "International Standard Musical Work Code for compositions",
+        "name": "iswc_code",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the musical track",
+        "name": "track_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the performing artist or band",
+        "name": "artist_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the artist",
+        "name": "artist_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the album or release",
+        "name": "album_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Unique identifier for the album",
+        "name": "album_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Year of the track or album release",
+        "name": "release_year",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Music genres: Pop, Rock, Hip-Hop, Electronic, etc.",
+        "mode": "REPEATED",
+        "name": "genre",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the record label",
+        "name": "record_label",
+        "type": "STRING"
+      },
+      {
+        "description": "Music publisher for publishing rights",
+        "name": "publisher",
+        "type": "STRING"
+      },
+      {
+        "description": "Composer or songwriter name",
+        "name": "composition_author",
+        "type": "STRING"
+      },
+      {
+        "description": "Type: STUDIO, LIVE, REMIX, COVER, ACOUSTIC",
+        "name": "performance_type",
+        "type": "STRING"
+      },
+      {
+        "description": "Duration of the music content in seconds",
+        "name": "music_duration_seconds",
+        "type": "INTEGER"
+      },
+      {
+        "description": "Flag indicating if content matches defined monitoring topic: TRUE/FALSE",
+        "name": "is_topic_match",
+        "type": "BOOLEAN"
+      },
+      {
+        "description": "Unique identifier for the matched monitoring topic",
+        "name": "topic_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Name: AI Regulation, Electric Vehicles, Quarterly Earnings, etc.",
+        "name": "topic_name",
+        "type": "STRING"
+      },
+      {
+        "description": "Category: Industry, Product, Crisis, Competitor, Executive, Theme",
+        "name": "topic_category",
+        "type": "STRING"
+      },
+      {
+        "description": "Relevance score for topic matching (0.0-1.0)",
+        "name": "topic_match_score",
+        "type": "FLOAT"
+      },
+      {
+        "description": "Keywords from content that matched the topic definition",
+        "mode": "REPEATED",
+        "name": "topic_keywords",
+        "type": "STRING"
+      },
+      {
+        "description": "Identifier for the narrative/story cluster this content belongs to",
+        "name": "narrative_id",
+        "type": "STRING"
+      },
+      {
+        "description": "Stage: EMERGING, DEVELOPING, PEAK, DECLINING, RESOLVED",
+        "name": "narrative_stage",
+        "type": "STRING"
+      },
+      {
+        "description": "Status: CLEARED, REVIEW_REQUIRED, RESTRICTED, UNKNOWN",
+        "name": "rights_status",
+        "type": "STRING"
+      },
+      {
+        "description": "Copyright information notice",
+        "name": "copyright_notice",
+        "type": "STRING"
+      },
+      {
+        "description": "Restrictions: EDITORIAL_ONLY, NO_COMMERCIAL, TIME_LIMITED",
+        "mode": "REPEATED",
+        "name": "usage_restrictions",
+        "type": "STRING"
+      },
+      {
+        "description": "Countries where content usage is restricted",
+        "mode": "REPEATED",
+        "name": "restricted_markets",
+        "type": "STRING"
+      },
+      {
+        "defaultValueExpression": "'PENDING'",
+        "description": "Status: PENDING, PROCESSING, COMPLETED, FAILED",
+        "name": "processing_status",
+        "type": "STRING"
+      },
+      {
+        "description": "Name of the pipeline that handled this item",
+        "name": "processing_pipeline",
+        "type": "STRING"
+      },
+      {
+        "description": "Overall quality score (0.0-1.0): completeness, clarity, accuracy",
+        "name": "quality_score",
+        "type": "FLOAT"
+      },
+      {
+        "description": "Reference to another item_id if this is a detected duplicate",
+        "name": "duplicate_of",
+        "type": "STRING"
+      },
+      {
+        "defaultValueExpression": "FALSE",
+        "description": "Flag indicating content requires manual review",
+        "name": "requires_review",
+        "type": "BOOLEAN"
+      },
+      {
+        "description": "Status: PENDING, IN_REVIEW, APPROVED, REJECTED",
+        "name": "review_status",
+        "type": "STRING"
+      },
+      {
+        "description": "User or system that performed the review",
+        "name": "reviewed_by",
+        "type": "STRING"
+      },
+      {
+        "description": "Timestamp of the review action",
+        "name": "reviewed_at",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Quality flags: DUPLICATE, LOW_QUALITY, INCOMPLETE, SUSPICIOUS, etc.",
+        "mode": "REPEATED",
+        "name": "data_quality_flags",
+        "type": "STRING"
+      },
+      {
+        "description": "Timestamp of last data quality verification",
+        "name": "last_verified_at",
+        "type": "TIMESTAMP"
+      },
+      {
+        "defaultValueExpression": "1",
+        "description": "Version number for tracking updates",
+        "name": "version_number",
+        "type": "INTEGER"
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "name": "ad_category",
+                "type": "STRING"
+              },
+              {
+                "name": "ad_subcategory",
+                "type": "STRING"
+              },
+              {
+                "name": "industry_code",
+                "type": "STRING"
+              },
+              {
+                "name": "creative_type",
+                "type": "STRING"
+              },
+              {
+                "name": "creative_format",
+                "type": "STRING"
+              },
+              {
+                "name": "ad_size",
+                "type": "STRING"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "width",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "height",
+                    "type": "INTEGER"
+                  }
+                ],
+                "name": "dimensions",
+                "type": "RECORD"
+              },
+              {
+                "name": "file_size_bytes",
+                "type": "INTEGER"
+              },
+              {
+                "name": "duration",
+                "type": "INTEGER"
+              },
+              {
+                "name": "placement_name",
+                "type": "STRING"
+              },
+              {
+                "name": "placement_type",
+                "type": "STRING"
+              },
+              {
+                "name": "page_url",
+                "type": "STRING"
+              },
+              {
+                "name": "site_section",
+                "type": "STRING"
+              },
+              {
+                "name": "device_type",
+                "type": "STRING"
+              },
+              {
+                "name": "browser_type",
+                "type": "STRING"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "criteria_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "criteria_value",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "targeting_criteria",
+                "type": "RECORD"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "audience_segments",
+                "type": "STRING"
+              },
+              {
+                "name": "bid_amount_cents",
+                "type": "INTEGER"
+              },
+              {
+                "name": "estimated_value_cents",
+                "type": "INTEGER"
+              },
+              {
+                "name": "media_cost_cents",
+                "type": "INTEGER"
+              },
+              {
+                "name": "currency_code",
+                "type": "STRING"
+              },
+              {
+                "name": "viewability_score",
+                "type": "FLOAT"
+              },
+              {
+                "name": "fraud_score",
+                "type": "FLOAT"
+              },
+              {
+                "name": "brand_safety_score",
+                "type": "FLOAT"
+              },
+              {
+                "name": "program_name",
+                "type": "STRING"
+              },
+              {
+                "name": "program_type",
+                "type": "STRING"
+              },
+              {
+                "name": "time_slot",
+                "type": "STRING"
+              },
+              {
+                "name": "daypart",
+                "type": "STRING"
+              },
+              {
+                "name": "estimated_media_value",
+                "type": "FLOAT"
+              },
+              {
+                "name": "publication_section",
+                "type": "STRING"
+              },
+              {
+                "name": "page_number",
+                "type": "INTEGER"
+              },
+              {
+                "name": "ad_position_on_page",
+                "type": "STRING"
+              },
+              {
+                "name": "column_inches",
+                "type": "FLOAT"
+              },
+              {
+                "name": "color_type",
+                "type": "STRING"
+              },
+              {
+                "name": "ooh_format",
+                "type": "STRING"
+              },
+              {
+                "name": "ooh_size",
+                "type": "STRING"
+              },
+              {
+                "name": "location_type",
+                "type": "STRING"
+              },
+              {
+                "name": "location_address",
+                "type": "STRING"
+              },
+              {
+                "name": "latitude",
+                "type": "FLOAT"
+              },
+              {
+                "name": "longitude",
+                "type": "FLOAT"
+              },
+              {
+                "name": "traffic_estimate",
+                "type": "INTEGER"
+              },
+              {
+                "name": "display_duration_seconds",
+                "type": "INTEGER"
+              },
+              {
+                "name": "illumination_type",
+                "type": "STRING"
+              },
+              {
+                "name": "verification_status",
+                "type": "STRING"
+              },
+              {
+                "name": "verified_by",
+                "type": "STRING"
+              },
+              {
+                "name": "verified_at",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "compliance_notes",
+                "type": "STRING"
+              }
+            ],
+            "name": "ad_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "name": "isrc",
+                "type": "STRING"
+              },
+              {
+                "name": "iswc",
+                "type": "STRING"
+              },
+              {
+                "name": "isan",
+                "type": "STRING"
+              },
+              {
+                "name": "eidr",
+                "type": "STRING"
+              },
+              {
+                "name": "grid",
+                "type": "STRING"
+              },
+              {
+                "name": "recording_title",
+                "type": "STRING"
+              },
+              {
+                "name": "recording_version",
+                "type": "STRING"
+              },
+              {
+                "name": "duration_seconds",
+                "type": "INTEGER"
+              },
+              {
+                "name": "track_number",
+                "type": "INTEGER"
+              },
+              {
+                "name": "disc_number",
+                "type": "INTEGER"
+              },
+              {
+                "name": "total_tracks",
+                "type": "INTEGER"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "artist_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "artist_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "artist_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "role",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "ipi_code",
+                    "type": "STRING"
+                  }
+                ],
+                "name": "artist",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "contributor_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "contributor_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "role",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "role_code",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "ipi_code",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "isni_code",
+                    "type": "STRING"
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "contributors",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "work_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "work_title",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "work_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "musical_distribution",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "language_of_lyrics",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "copyright_date",
+                    "type": "DATE"
+                  },
+                  {
+                    "fields": [
+                      {
+                        "name": "publisher_name",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "publisher_code",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "REPEATED",
+                        "name": "territories",
+                        "type": "STRING"
+                      },
+                      {
+                        "mode": "REPEATED",
+                        "name": "rights_type",
+                        "type": "STRING"
+                      }
+                    ],
+                    "mode": "REPEATED",
+                    "name": "publishing_rights",
+                    "type": "RECORD"
+                  }
+                ],
+                "name": "musical_work",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "release_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "release_title",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "release_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "release_format",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "release_date",
+                    "type": "DATE"
+                  },
+                  {
+                    "name": "catalog_number",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "label_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "label_code",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "distribution_model",
+                    "type": "STRING"
+                  }
+                ],
+                "name": "release",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "genre_code",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "genre_description",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "genre_weight",
+                    "type": "FLOAT"
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "genre",
+                "type": "RECORD"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "mood",
+                "type": "STRING"
+              },
+              {
+                "name": "tempo",
+                "type": "STRING"
+              },
+              {
+                "name": "key_signature",
+                "type": "STRING"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "entity_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "entity_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "entity_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "territories",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "rights_type",
+                    "type": "STRING"
+                  }
+                ],
+                "name": "rights_holder",
+                "type": "RECORD"
+              },
+              {
+                "name": "audio_quality",
+                "type": "STRING"
+              },
+              {
+                "name": "explicit_content",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "acoustic_electric",
+                "type": "STRING"
+              },
+              {
+                "name": "live_studio",
+                "type": "STRING"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "rotation_status",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "rotation_level",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "first_air_date",
+                    "type": "TIMESTAMP"
+                  },
+                  {
+                    "name": "total_plays",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "audience_reach",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "broadcast_countries",
+                    "type": "STRING"
+                  }
+                ],
+                "name": "airplay",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "platform",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "track_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "play_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "like_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "follower_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "stream_url",
+                    "type": "STRING"
+                  }
+                ],
+                "name": "streaming",
+                "type": "RECORD"
+              }
+            ],
+            "name": "music_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "fields": [
+                  {
+                    "name": "tweet_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "conversation_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "reply_to_tweet_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "quote_tweet_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "retweet_of_tweet_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_handle",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_display_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_verified",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "user_followers_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_following_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_tweets_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_account_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "tweet_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "reply_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "retweet_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "like_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "quote_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "bookmark_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "impression_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "url_clicks",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "hashtag_entities",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "mention_entities",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "cashtag_entities",
+                    "type": "STRING"
+                  },
+                  {
+                    "fields": [
+                      {
+                        "name": "option",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "votes",
+                        "type": "INTEGER"
+                      }
+                    ],
+                    "mode": "REPEATED",
+                    "name": "poll_data",
+                    "type": "RECORD"
+                  },
+                  {
+                    "name": "lang",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "source",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "possibly_sensitive",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "geo_enabled",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "fields": [
+                      {
+                        "name": "lat",
+                        "type": "FLOAT"
+                      },
+                      {
+                        "name": "lng",
+                        "type": "FLOAT"
+                      }
+                    ],
+                    "name": "coordinates",
+                    "type": "RECORD"
+                  },
+                  {
+                    "name": "place_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "place_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "place_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "place_country_code",
+                    "type": "STRING"
+                  }
+                ],
+                "name": "twitter",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "post_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "post_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "status_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "object_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "permalink_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "from_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "from_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "from_category",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "to_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "to_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "message",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "story",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "link",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "caption",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "description",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "picture",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "full_picture",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "place_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "place_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "fields": [
+                      {
+                        "name": "street",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "city",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "country",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "latitude",
+                        "type": "FLOAT"
+                      },
+                      {
+                        "name": "longitude",
+                        "type": "FLOAT"
+                      }
+                    ],
+                    "name": "place_location",
+                    "type": "RECORD"
+                  },
+                  {
+                    "name": "privacy_value",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "privacy_description",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "is_hidden",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "is_published",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "is_instagram_eligible",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "scheduled_publish_time",
+                    "type": "TIMESTAMP"
+                  },
+                  {
+                    "name": "backdated_time",
+                    "type": "TIMESTAMP"
+                  },
+                  {
+                    "name": "created_time",
+                    "type": "TIMESTAMP"
+                  },
+                  {
+                    "name": "shares_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "likes_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "comments_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "love_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "wow_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "haha_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "sad_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "angry_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "reactions_total_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "video_views",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "reach_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "reach_unique_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "impressions_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "impressions_unique_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "engagement_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "negative_feedback_count",
+                    "type": "INTEGER"
+                  }
+                ],
+                "name": "facebook",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "media_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "media_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "media_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "permalink_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "caption",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "timestamp",
+                    "type": "TIMESTAMP"
+                  },
+                  {
+                    "name": "username",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "like_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "comments_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "impressions_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "reach_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "saved_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "engagement_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "video_views",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "carousel_album_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "children_media_ids",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "has_audio",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "is_video",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "video_duration",
+                    "type": "FLOAT"
+                  },
+                  {
+                    "name": "location_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "location_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "location_latitude",
+                    "type": "FLOAT"
+                  },
+                  {
+                    "name": "location_longitude",
+                    "type": "FLOAT"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "tags",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "mention_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "hashtag_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_tag_count",
+                    "type": "INTEGER"
+                  }
+                ],
+                "name": "instagram",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "video_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "video_description",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "create_time",
+                    "type": "TIMESTAMP"
+                  },
+                  {
+                    "name": "digg_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "share_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "comment_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "play_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "forward_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "download_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_display_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "user_followers_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_following_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_likes_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "user_video_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "music_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "music_title",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "music_author_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "music_original",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "music_duration_seconds",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "challenge_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "challenge_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "effect_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "effect_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "duet_enabled",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "stitch_enabled",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "is_ad",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "name": "is_paid_partner",
+                    "type": "BOOLEAN"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "keywords",
+                    "type": "STRING"
+                  },
+                  {
+                    "mode": "REPEATED",
+                    "name": "hashtags",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "video_duration_seconds",
+                    "type": "FLOAT"
+                  },
+                  {
+                    "name": "video_width",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "video_height",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "cover_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "share_url",
+                    "type": "STRING"
+                  }
+                ],
+                "name": "tiktok",
+                "type": "RECORD"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "post_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "author_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "author_name",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "author_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "author_industry",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "author_headline",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "post_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "commentary_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "subject",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "body",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "shared_post_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "shared_post_author",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "media_type",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "media_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "thumbnail_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "article_url",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "article_title",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "document_id",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "poll_question",
+                    "type": "STRING"
+                  },
+                  {
+                    "fields": [
+                      {
+                        "name": "option",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "position",
+                        "type": "INTEGER"
+                      }
+                    ],
+                    "mode": "REPEATED",
+                    "name": "poll_options",
+                    "type": "RECORD"
+                  },
+                  {
+                    "name": "poll_total_votes",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "fields": [
+                      {
+                        "name": "like",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "celebrate",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "love",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "insightful",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "curious",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "name": "funny",
+                        "type": "INTEGER"
+                      }
+                    ],
+                    "name": "reaction_counts",
+                    "type": "RECORD"
+                  },
+                  {
+                    "name": "comments_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "reposts_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "impressions_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "engagement_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "click_count",
+                    "type": "INTEGER"
+                  },
+                  {
+                    "name": "view_count",
+                    "type": "INTEGER"
+                  }
+                ],
+                "name": "linkedin",
+                "type": "RECORD"
+              }
+            ],
+            "name": "social_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "name": "dc_title",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_creator",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_subject",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_description",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_publisher",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_contributor",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "dc_type",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_format",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_identifier",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_source",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_language",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_relation",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_coverage",
+                "type": "STRING"
+              },
+              {
+                "name": "dc_rights",
+                "type": "STRING"
+              },
+              {
+                "name": "article_type",
+                "type": "STRING"
+              },
+              {
+                "name": "article_section",
+                "type": "STRING"
+              },
+              {
+                "name": "article_subsection",
+                "type": "STRING"
+              },
+              {
+                "name": "word_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "reading_time_seconds",
+                "type": "INTEGER"
+              },
+              {
+                "name": "byline",
+                "type": "STRING"
+              },
+              {
+                "name": "kicker",
+                "type": "STRING"
+              },
+              {
+                "name": "subheadline",
+                "type": "STRING"
+              },
+              {
+                "name": "editorial_deadline",
+                "type": "STRING"
+              },
+              {
+                "name": "editorial_note",
+                "type": "STRING"
+              },
+              {
+                "name": "story_id",
+                "type": "STRING"
+              },
+              {
+                "name": "publication_sequence",
+                "type": "INTEGER"
+              },
+              {
+                "name": "canonical_url",
+                "type": "STRING"
+              },
+              {
+                "name": "og_title",
+                "type": "STRING"
+              },
+              {
+                "name": "og_description",
+                "type": "STRING"
+              },
+              {
+                "name": "og_image_url",
+                "type": "STRING"
+              },
+              {
+                "name": "twitter_card",
+                "type": "STRING"
+              },
+              {
+                "name": "twitter_title",
+                "type": "STRING"
+              },
+              {
+                "name": "twitter_description",
+                "type": "STRING"
+              },
+              {
+                "name": "twitter_image",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "meta_keywords",
+                "type": "STRING"
+              },
+              {
+                "name": "meta_description",
+                "type": "STRING"
+              },
+              {
+                "name": "robots_directive",
+                "type": "STRING"
+              },
+              {
+                "name": "canonical_tag",
+                "type": "STRING"
+              },
+              {
+                "name": "wp_post_id",
+                "type": "STRING"
+              },
+              {
+                "name": "wp_post_name",
+                "type": "STRING"
+              },
+              {
+                "name": "wp_post_type",
+                "type": "STRING"
+              },
+              {
+                "name": "wp_status",
+                "type": "STRING"
+              },
+              {
+                "name": "wp_author",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "wp_category",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "wp_tag",
+                "type": "STRING"
+              },
+              {
+                "name": "wp_featured_image_url",
+                "type": "STRING"
+              }
+            ],
+            "name": "article_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "name": "iptc_video_identifier",
+                "type": "STRING"
+              },
+              {
+                "name": "iptc_video_source",
+                "type": "STRING"
+              },
+              {
+                "name": "iptc_video_source_version",
+                "type": "STRING"
+              },
+              {
+                "name": "iptc_video_rights_usage_terms",
+                "type": "STRING"
+              },
+              {
+                "name": "iptc_video_copyright_notice",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "iptc_video_creator",
+                "type": "STRING"
+              },
+              {
+                "name": "iptc_video_title",
+                "type": "STRING"
+              },
+              {
+                "name": "iptc_video_description",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "iptc_video_keywords",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "iptc_video_genre",
+                "type": "STRING"
+              },
+              {
+                "name": "iptc_video_topic",
+                "type": "STRING"
+              },
+              {
+                "name": "duration_seconds",
+                "type": "FLOAT"
+              },
+              {
+                "name": "frame_width",
+                "type": "INTEGER"
+              },
+              {
+                "name": "frame_height",
+                "type": "INTEGER"
+              },
+              {
+                "name": "aspect_ratio",
+                "type": "STRING"
+              },
+              {
+                "name": "frame_rate",
+                "type": "FLOAT"
+              },
+              {
+                "name": "bitrate",
+                "type": "INTEGER"
+              },
+              {
+                "name": "codec",
+                "type": "STRING"
+              },
+              {
+                "name": "codec_profile",
+                "type": "STRING"
+              },
+              {
+                "name": "audio_codec",
+                "type": "STRING"
+              },
+              {
+                "name": "audio_sample_rate",
+                "type": "INTEGER"
+              },
+              {
+                "name": "audio_channels",
+                "type": "INTEGER"
+              },
+              {
+                "name": "content_type",
+                "type": "STRING"
+              },
+              {
+                "name": "show_type",
+                "type": "STRING"
+              },
+              {
+                "name": "episode_number",
+                "type": "STRING"
+              },
+              {
+                "name": "season_number",
+                "type": "STRING"
+              },
+              {
+                "name": "program_name",
+                "type": "STRING"
+              },
+              {
+                "name": "series_name",
+                "type": "STRING"
+              },
+              {
+                "name": "broadcast_date",
+                "type": "TIMESTAMP"
+              },
+              {
+                "name": "broadcast_time",
+                "type": "TIME"
+              },
+              {
+                "name": "time_slot",
+                "type": "STRING"
+              },
+              {
+                "name": "daypart",
+                "type": "STRING"
+              },
+              {
+                "name": "network",
+                "type": "STRING"
+              },
+              {
+                "name": "station_id",
+                "type": "STRING"
+              },
+              {
+                "name": "station_name",
+                "type": "STRING"
+              },
+              {
+                "name": "program_type",
+                "type": "STRING"
+              },
+              {
+                "name": "rating",
+                "type": "STRING"
+              },
+              {
+                "name": "estimated_viewers",
+                "type": "INTEGER"
+              },
+              {
+                "name": "youtube_video_id",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_channel_id",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_channel_name",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_category_id",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "youtube_tags",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_privacy_status",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_license",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_embeddable",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "youtube_view_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "youtube_like_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "youtube_dislike_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "youtube_comment_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "youtube_favorite_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "youtube_upload_status",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_processing_status",
+                "type": "STRING"
+              },
+              {
+                "name": "youtube_availability_error",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_name",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_episode_id",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_episode_title",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_season_number",
+                "type": "INTEGER"
+              },
+              {
+                "name": "podcast_episode_number",
+                "type": "INTEGER"
+              },
+              {
+                "name": "podcast_episode_type",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_explicit",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "podcast_summary",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_episode_notes",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_duration_seconds",
+                "type": "INTEGER"
+              },
+              {
+                "name": "podcast_file_size_bytes",
+                "type": "INTEGER"
+              },
+              {
+                "name": "podcast_episode_url",
+                "type": "STRING"
+              },
+              {
+                "name": "podcast_feed_url",
+                "type": "STRING"
+              }
+            ],
+            "name": "video_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "name": "publication_name",
+                "type": "STRING"
+              },
+              {
+                "name": "publication_edition",
+                "type": "STRING"
+              },
+              {
+                "name": "issue_number",
+                "type": "STRING"
+              },
+              {
+                "name": "issue_date",
+                "type": "DATE"
+              },
+              {
+                "name": "volume_number",
+                "type": "STRING"
+              },
+              {
+                "name": "issue_year",
+                "type": "INTEGER"
+              },
+              {
+                "name": "issue_month",
+                "type": "INTEGER"
+              },
+              {
+                "name": "issue_day",
+                "type": "INTEGER"
+              },
+              {
+                "name": "section",
+                "type": "STRING"
+              },
+              {
+                "name": "subsection",
+                "type": "STRING"
+              },
+              {
+                "name": "page_number",
+                "type": "INTEGER"
+              },
+              {
+                "name": "start_page",
+                "type": "INTEGER"
+              },
+              {
+                "name": "end_page",
+                "type": "INTEGER"
+              },
+              {
+                "name": "page_position",
+                "type": "STRING"
+              },
+              {
+                "name": "column_position",
+                "type": "STRING"
+              },
+              {
+                "name": "placement_type",
+                "type": "STRING"
+              },
+              {
+                "name": "article_length_cm",
+                "type": "FLOAT"
+              },
+              {
+                "name": "article_length_inches",
+                "type": "FLOAT"
+              },
+              {
+                "name": "word_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "headline_type",
+                "type": "STRING"
+              },
+              {
+                "name": "headline_size",
+                "type": "STRING"
+              },
+              {
+                "name": "photo_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "graphic_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "edition_number",
+                "type": "STRING"
+              },
+              {
+                "name": "edition_type",
+                "type": "STRING"
+              },
+              {
+                "name": "regional_edition",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "print_run_estimate",
+                "type": "INTEGER"
+              },
+              {
+                "name": "circulation_estimate",
+                "type": "INTEGER"
+              },
+              {
+                "name": "article_type",
+                "type": "STRING"
+              },
+              {
+                "name": "story_type",
+                "type": "STRING"
+              },
+              {
+                "name": "angle",
+                "type": "STRING"
+              },
+              {
+                "name": "priority_score",
+                "type": "FLOAT"
+              },
+              {
+                "name": "digital_issue_url",
+                "type": "STRING"
+              },
+              {
+                "name": "digital_edition_available",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "web_article_url",
+                "type": "STRING"
+              },
+              {
+                "name": "clipping_service",
+                "type": "STRING"
+              },
+              {
+                "name": "clipping_reference",
+                "type": "STRING"
+              },
+              {
+                "name": "original_publication_date",
+                "type": "DATE"
+              },
+              {
+                "name": "reproduction_quality",
+                "type": "STRING"
+              },
+              {
+                "name": "copyright_holder",
+                "type": "STRING"
+              },
+              {
+                "name": "copyright_cost_cents",
+                "type": "INTEGER"
+              }
+            ],
+            "name": "print_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "name": "ooh_location_id",
+                "type": "STRING"
+              },
+              {
+                "name": "location_name",
+                "type": "STRING"
+              },
+              {
+                "name": "location_type",
+                "type": "STRING"
+              },
+              {
+                "name": "location_address",
+                "type": "STRING"
+              },
+              {
+                "name": "city",
+                "type": "STRING"
+              },
+              {
+                "name": "state",
+                "type": "STRING"
+              },
+              {
+                "name": "country_code",
+                "type": "STRING"
+              },
+              {
+                "name": "postal_code",
+                "type": "STRING"
+              },
+              {
+                "name": "latitude",
+                "type": "FLOAT"
+              },
+              {
+                "name": "longitude",
+                "type": "FLOAT"
+              },
+              {
+                "name": "altitude",
+                "type": "FLOAT"
+              },
+              {
+                "name": "structure_type",
+                "type": "STRING"
+              },
+              {
+                "name": "structure_id",
+                "type": "STRING"
+              },
+              {
+                "name": "side_number",
+                "type": "STRING"
+              },
+              {
+                "name": "facing_direction",
+                "type": "STRING"
+              },
+              {
+                "name": "ooh_format",
+                "type": "STRING"
+              },
+              {
+                "name": "display_width_cm",
+                "type": "FLOAT"
+              },
+              {
+                "name": "display_height_cm",
+                "type": "FLOAT"
+              },
+              {
+                "name": "display_area_sqm",
+                "type": "FLOAT"
+              },
+              {
+                "name": "display_sides",
+                "type": "INTEGER"
+              },
+              {
+                "name": "illumination_type",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "illumination_hours",
+                "type": "STRING"
+              },
+              {
+                "name": "animation_type",
+                "type": "STRING"
+              },
+              {
+                "name": "placement_context",
+                "type": "STRING"
+              },
+              {
+                "name": "venue_type",
+                "type": "STRING"
+              },
+              {
+                "name": "foot_traffic_daily",
+                "type": "INTEGER"
+              },
+              {
+                "name": "vehicle_traffic_daily",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "audience_segment",
+                "type": "STRING"
+              },
+              {
+                "name": "is_digital",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "screen_orientation",
+                "type": "STRING"
+              },
+              {
+                "name": "resolution_width",
+                "type": "INTEGER"
+              },
+              {
+                "name": "resolution_height",
+                "type": "INTEGER"
+              },
+              {
+                "name": "screen_count",
+                "type": "INTEGER"
+              },
+              {
+                "name": "content_rotation_interval_seconds",
+                "type": "INTEGER"
+              },
+              {
+                "name": "programmatic_enabled",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "campaign_id",
+                "type": "STRING"
+              },
+              {
+                "name": "campaign_name",
+                "type": "STRING"
+              },
+              {
+                "name": "advertiser_id",
+                "type": "STRING"
+              },
+              {
+                "name": "advertiser_name",
+                "type": "STRING"
+              },
+              {
+                "name": "brand_id",
+                "type": "STRING"
+              },
+              {
+                "name": "brand_name",
+                "type": "STRING"
+              },
+              {
+                "name": "creative_id",
+                "type": "STRING"
+              },
+              {
+                "name": "creative_rotation_order",
+                "type": "INTEGER"
+              },
+              {
+                "name": "scheduled_start_date",
+                "type": "DATE"
+              },
+              {
+                "name": "scheduled_end_date",
+                "type": "DATE"
+              },
+              {
+                "name": "actual_start_date",
+                "type": "DATE"
+              },
+              {
+                "name": "actual_end_date",
+                "type": "DATE"
+              },
+              {
+                "name": "estimated_daily_impressions",
+                "type": "INTEGER"
+              },
+              {
+                "name": "gross_rating_points",
+                "type": "FLOAT"
+              },
+              {
+                "name": "equivalent_media_value_cents",
+                "type": "INTEGER"
+              },
+              {
+                "name": "currency_code",
+                "type": "STRING"
+              },
+              {
+                "name": "verified_impressions",
+                "type": "INTEGER"
+              },
+              {
+                "name": "measurement_provider",
+                "type": "STRING"
+              },
+              {
+                "name": "verification_status",
+                "type": "STRING"
+              },
+              {
+                "name": "verification_date",
+                "type": "DATE"
+              },
+              {
+                "name": "verification_notes",
+                "type": "STRING"
+              },
+              {
+                "name": "audit_status",
+                "type": "STRING"
+              }
+            ],
+            "name": "ooh_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "name": "topic_id",
+                "type": "STRING"
+              },
+              {
+                "name": "topic_name",
+                "type": "STRING"
+              },
+              {
+                "name": "topic_description",
+                "type": "STRING"
+              },
+              {
+                "name": "topic_category",
+                "type": "STRING"
+              },
+              {
+                "name": "topic_subcategory",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "topic_keywords",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "topic_entities",
+                "type": "STRING"
+              },
+              {
+                "fields": [
+                  {
+                    "name": "keyword",
+                    "type": "STRING"
+                  },
+                  {
+                    "name": "weight",
+                    "type": "FLOAT"
+                  }
+                ],
+                "mode": "REPEATED",
+                "name": "topic_keywords_weighted",
+                "type": "RECORD"
+              },
+              {
+                "name": "match_type",
+                "type": "STRING"
+              },
+              {
+                "name": "match_strength",
+                "type": "FLOAT"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "matched_keywords",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "matched_entities",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "context_snippets",
+                "type": "STRING"
+              },
+              {
+                "name": "narrative_id",
+                "type": "STRING"
+              },
+              {
+                "name": "narrative_name",
+                "type": "STRING"
+              },
+              {
+                "name": "narrative_stage",
+                "type": "STRING"
+              },
+              {
+                "name": "narrative_priority",
+                "type": "STRING"
+              },
+              {
+                "name": "narrative_sentiment",
+                "type": "FLOAT"
+              },
+              {
+                "name": "crisis_indicator",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "crisis_level",
+                "type": "STRING"
+              },
+              {
+                "name": "sentiment_trend",
+                "type": "STRING"
+              },
+              {
+                "name": "sentiment_change",
+                "type": "FLOAT"
+              },
+              {
+                "name": "trend_direction",
+                "type": "STRING"
+              },
+              {
+                "name": "trend_strength",
+                "type": "FLOAT"
+              },
+              {
+                "name": "trend_significance",
+                "type": "FLOAT"
+              },
+              {
+                "name": "previous_period_volume",
+                "type": "INTEGER"
+              },
+              {
+                "name": "current_period_volume",
+                "type": "INTEGER"
+              },
+              {
+                "name": "percent_change",
+                "type": "FLOAT"
+              },
+              {
+                "name": "competitive_mention",
+                "type": "BOOLEAN"
+              },
+              {
+                "name": "competitor_id",
+                "type": "STRING"
+              },
+              {
+                "name": "competitor_name",
+                "type": "STRING"
+              },
+              {
+                "name": "competitive_share",
+                "type": "FLOAT"
+              }
+            ],
+            "name": "topic_metadata",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "name": "field_name",
+                "type": "STRING"
+              },
+              {
+                "name": "field_value",
+                "type": "STRING"
+              },
+              {
+                "name": "field_type",
+                "type": "STRING"
+              },
+              {
+                "name": "field_source",
+                "type": "STRING"
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "additional_fields",
+            "type": "RECORD"
+          },
+          {
+            "name": "raw_source_data",
+            "type": "STRING"
+          }
+        ],
+        "name": "metadata",
+        "type": "RECORD"
+      }
+    ]
+  },
+  "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/spaza-media-monitor/datasets/media_monitoring/tables/media_items",
+  "tableReference": {
+    "datasetId": "media_monitoring",
+    "projectId": "spaza-media-monitor",
+    "tableId": "media_items"
+  },
+  "timePartitioning": {
+    "field": "published_at",
+    "requirePartitionFilter": true,
+    "type": "DAY"
+  },
+  "type": "TABLE"
+}

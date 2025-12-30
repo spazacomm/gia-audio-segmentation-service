@@ -1,0 +1,6 @@
+apache-beam[gcp]==2.61.0
+pyacoustid==1.3.0
+google-generativeai==0.8.3
+pydub==0.25.1
+# ffmpeg is a system dependency, but required by inaSpeechSegmenter and pydub
+musicbrainzngs==0.7.1

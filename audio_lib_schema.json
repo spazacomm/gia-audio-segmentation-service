@@ -1,0 +1,71 @@
+{
+  "creationTime": "1767008465300",
+  "etag": "U4FV6Q3FlTYddWFOkgTeSA==",
+  "id": "spaza-media-monitor:media_monitoring.audio_library",
+  "kind": "bigquery#table",
+  "lastModifiedTime": "1767008465344",
+  "location": "US",
+  "numActiveLogicalBytes": "0",
+  "numBytes": "0",
+  "numLongTermBytes": "0",
+  "numLongTermLogicalBytes": "0",
+  "numRows": "0",
+  "numTotalLogicalBytes": "0",
+  "schema": {
+    "fields": [
+      {
+        "mode": "REQUIRED",
+        "name": "fingerprint_id",
+        "type": "STRING"
+      },
+      {
+        "mode": "REQUIRED",
+        "name": "fingerprint_uri",
+        "type": "STRING"
+      },
+      {
+        "description": "song, ad, content",
+        "mode": "REQUIRED",
+        "name": "source_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "title",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "artist",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "brand",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "transcript",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "tags",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "metadata",
+        "type": "JSON"
+      }
+    ]
+  },
+  "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/spaza-media-monitor/datasets/media_monitoring/tables/audio_library",
+  "tableReference": {
+    "datasetId": "media_monitoring",
+    "projectId": "spaza-media-monitor",
+    "tableId": "audio_library"
+  },
+  "type": "TABLE"
+}

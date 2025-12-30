@@ -1,0 +1,11 @@
+[
+  {"name": "fingerprint_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "fingerprint_uri", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "source_type", "type": "STRING", "mode": "REQUIRED", "description": "song, ad, content"},
+  {"name": "title", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "artist", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "brand", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "transcript", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "tags", "type": "STRING", "mode": "REPEATED"},
+  {"name": "metadata", "type": "JSON", "mode": "NULLABLE"}
+]

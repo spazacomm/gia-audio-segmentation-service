@@ -1,0 +1,15 @@
+[
+  {"name": "segment_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique UUID for the segment"},
+  {"name": "parent_file_uri", "type": "STRING", "mode": "REQUIRED", "description": "GCS path of the source file"},
+  {"name": "start_offset_seconds", "type": "FLOAT", "mode": "REQUIRED"},
+  {"name": "end_offset_seconds", "type": "FLOAT", "mode": "REQUIRED"},
+  {"name": "duration_seconds", "type": "FLOAT", "mode": "REQUIRED"},
+  {"name": "segment_label", "type": "STRING", "mode": "REQUIRED", "description": "male, female, music, noise"},
+  {"name": "segmenter_confidence", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "transcription", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "stt_confidence", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "language_code", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "station_name", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "platform_type", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "processed_at", "type": "TIMESTAMP", "mode": "NULLABLE", "defaultValueExpression": "CURRENT_TIMESTAMP()"}
+]

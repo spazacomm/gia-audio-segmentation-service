@@ -1,0 +1,35 @@
+steps:
+  # Step 1: Build the custom SDK container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_IMAGE_URI', '.']
+
+  # Step 2: Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_IMAGE_URI']
+
+  # Step 3: Launch the Dataflow job using the image just built
+  - name: '$_IMAGE_URI'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        ARGS="--project=$_PROJECT_ID --region=$_REGION --runner=DataflowRunner --job_name=$_JOB_NAME --temp_location=gs://$_BUCKET/temp --staging_location=gs://$_BUCKET/staging --dataset=$_DATASET --date=$_DATE --api_key_gemini=$_GEMINI_API_KEY --api_key_acoustid=$_ACOUSTID_API_KEY --sdk_container_image=$_IMAGE_URI --sdk_location=container --machine_type=n1-standard-4 --num_workers=2 --max_num_workers=20"
+        if [ "$_RUN_MODE" = "streaming" ]; then
+          ARGS="$$ARGS --streaming"
+        fi
+        python3 main.py $$ARGS
+
+images:
+  - '$_IMAGE_URI'
+
+substitutions:
+  _PROJECT_ID: $PROJECT_ID
+  _REGION: $REGION
+  _BUCKET: $BUCKET
+  _DATASET: $DATASET
+  _DATE: $DATE
+  _JOB_NAME: $JOB_NAME
+  _GEMINI_API_KEY: $GEMINI_API_KEY
+  _ACOUSTID_API_KEY: $ACOUSTID_API_KEY
+  _IMAGE_URI: $IMAGE_URI
+  _RUN_MODE: $RUN_MODE

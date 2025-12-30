@@ -1,0 +1,124 @@
+{
+  "clustering": {
+    "fields": [
+      "platform_type",
+      "station_name",
+      "segment_label"
+    ]
+  },
+  "creationTime": "1766933612784",
+  "etag": "mkXUg6GYm+zeXLJG5Pjqjg==",
+  "id": "spaza-media-monitor:media_monitoring.audio_segments",
+  "kind": "bigquery#table",
+  "lastModifiedTime": "1767109254711",
+  "location": "US",
+  "numActiveLogicalBytes": "321474",
+  "numActivePhysicalBytes": "54143",
+  "numBytes": "321474",
+  "numCurrentPhysicalBytes": "54143",
+  "numLongTermBytes": "0",
+  "numLongTermLogicalBytes": "0",
+  "numLongTermPhysicalBytes": "0",
+  "numPartitions": "1",
+  "numRows": "1546",
+  "numTimeTravelPhysicalBytes": "0",
+  "numTotalLogicalBytes": "321474",
+  "numTotalPhysicalBytes": "54143",
+  "partitionDefinition": {
+    "partitionedColumn": [
+      {
+        "field": "processed_at"
+      }
+    ]
+  },
+  "schema": {
+    "fields": [
+      {
+        "description": "Unique UUID for the segment",
+        "mode": "REQUIRED",
+        "name": "segment_id",
+        "type": "STRING"
+      },
+      {
+        "description": "GCS path of the 5-min source chunk",
+        "mode": "REQUIRED",
+        "name": "parent_file_uri",
+        "type": "STRING"
+      },
+      {
+        "mode": "REQUIRED",
+        "name": "start_offset_seconds",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "REQUIRED",
+        "name": "end_offset_seconds",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "REQUIRED",
+        "name": "duration_seconds",
+        "type": "FLOAT"
+      },
+      {
+        "description": "male, female, music, noise, noenergy",
+        "mode": "REQUIRED",
+        "name": "segment_label",
+        "type": "STRING"
+      },
+      {
+        "name": "segmenter_confidence",
+        "type": "FLOAT"
+      },
+      {
+        "description": "Text from STT or Gemini",
+        "name": "transcription",
+        "type": "STRING"
+      },
+      {
+        "name": "stt_confidence",
+        "type": "FLOAT"
+      },
+      {
+        "name": "language_code",
+        "type": "STRING"
+      },
+      {
+        "name": "station_name",
+        "type": "STRING"
+      },
+      {
+        "name": "platform_type",
+        "type": "STRING"
+      },
+      {
+        "defaultValueExpression": "CURRENT_TIMESTAMP()",
+        "name": "processed_at",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Absolute start time",
+        "mode": "NULLABLE",
+        "name": "start_time",
+        "type": "TIMESTAMP"
+      },
+      {
+        "description": "Absolute end time",
+        "mode": "NULLABLE",
+        "name": "end_time",
+        "type": "TIMESTAMP"
+      }
+    ]
+  },
+  "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/spaza-media-monitor/datasets/media_monitoring/tables/audio_segments",
+  "tableReference": {
+    "datasetId": "media_monitoring",
+    "projectId": "spaza-media-monitor",
+    "tableId": "audio_segments"
+  },
+  "timePartitioning": {
+    "field": "processed_at",
+    "type": "DAY"
+  },
+  "type": "TABLE"
+}
